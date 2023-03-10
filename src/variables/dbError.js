@@ -1,0 +1,9 @@
+const SEQUELIZE_VALIDATION_ERROR = "SequelizeValidationError";
+const SEQUELIZE_DATABASE_ERROR = "SequelizeDatabaseError";
+const SEQUELIZE_UNIQUE_CONSTRAINT_ERROR = "SequelizeUniqueConstraintError";
+
+module.exports = {
+    SEQUELIZE_VALIDATION_ERROR,
+    SEQUELIZE_DATABASE_ERROR,
+    SEQUELIZE_UNIQUE_CONSTRAINT_ERROR
+}

@@ -1,7 +1,9 @@
 var crypto = require('crypto');
 const {
     validateUserPhoneNumber,
-    validateEmail
+    validateEmail,
+    validatePassword,
+    validateUsername
 } = require('../utils/formater')
 const {
     SEND_MAIL,
@@ -30,7 +32,10 @@ const {
     UNIDENTIFIED_ERROR,
     OTP_UNMATCH,
     OTP_EXPIRED,
-    USER_HAS_ALREADY_BEEN_CREATED
+    USER_HAS_ALREADY_BEEN_CREATED,
+    INVALID_PASSWORD,
+    EMAIL_HAS_ALREADY_BEEN_USED,
+    INVALID_USERNAME
 } = require('../variables/responseMessage');
 const { POSTRequest } = require('../utils/axios/post');
 const { checkCredentialTokenOTP } = require('../utils/middleware');
@@ -49,8 +54,8 @@ const InitCredentialRoute = (app) => {
         if (!req.body) return res.sendStatus(400);
         if (!req.body.credentialToken) return res.sendStatus(401);
         const { result, err, status } = renewToken(req.body.credentialToken, req.session.refreshTokens);
-        if (status !== 200) return res.send(err).status(status);
-        return res.json(result).status(status);
+        if (status !== 200) return res.status(status).send(err);
+        return res.status(status).json(result);
     });
 
     /*POST Method
@@ -60,14 +65,14 @@ const InitCredentialRoute = (app) => {
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/verify/otp`, checkCredentialTokenOTP, (req, res) => {
         // check query param availability
         if (!req.body) return res.sendStatus(400);
-        if (!req.body.credentialToken) res.send(UNIDENTIFIED_ERROR).status(400);
-        if (new Date().getTime() >= req.user.OTPExpiration) return res.json(OTP_EXPIRED).status(403);
-        if (req.body.OTPInput !== req.user.OTP) return res.json(OTP_UNMATCH).status(403);
+        if (!req.body.credentialToken) res.status(400).send(UNIDENTIFIED_ERROR);
+        if (new Date().getTime() >= req.user.OTPExpiration) return res.status(403).json(OTP_EXPIRED);
+        if (req.body.OTPInput !== req.user.OTP) return res.status(403).json(OTP_UNMATCH);
 
         // If OTP valid, redirect to renew token
         const { result, err, status } = renewToken(req.body.credentialToken, req.session.refreshTokens);
-        if (status !== 200) return res.send(err).status(status);
-        return res.json(result).status(status);
+        if (status !== 200) return res.status(status).send(err);
+        return res.status(status).json(result);
     });
 
     /*POST Method
@@ -84,10 +89,10 @@ const InitCredentialRoute = (app) => {
         // Request find one to the database via sequelize function
         await MasterUser.findOne({ where: { username: reqUser.username } })
             .then((user) => {
-                if (!user) return res.send(USER_NOT_FOUND).status(404);
+                if (!user) return res.status(404).send(USER_NOT_FOUND);
                 crypto.pbkdf2(reqUser.password, user.salt, 310000, 32, 'sha256', async function (err, hashedPassword) {
-                    if (err) res.send(err).status(500);
-                    if (!crypto.timingSafeEqual(user.hashedPassword, hashedPassword)) return res.send(WRONG_PASSWORD_INPUT).status(403);
+                    if (err) res.status(500).send(err);
+                    if (!crypto.timingSafeEqual(user.hashedPassword, hashedPassword)) return res.status(403).send(WRONG_PASSWORD_INPUT);
                     if (!req.session.refreshTokens) req.session.refreshTokens = [];
 
                     // put the necessary user info here
@@ -112,9 +117,9 @@ const InitCredentialRoute = (app) => {
                         logTitle: POST_SEND_EMAIL
                     });
 
-                    if (!result) return res.send(UNIDENTIFIED_ERROR).status(404);
+                    if (!result) return res.status(404).send(UNIDENTIFIED_ERROR);
                     if (result.httpCode === 500) return res.sendStatus(500);
-                    if (result.error) return res.send(result.errContent).status(result.httpCode);
+                    if (result.error) return res.status(result.httpCode).send(result.errContent);
 
                     // token will only save the desired user info
                     const accessToken = generateAccessToken(userInfo);
@@ -125,12 +130,12 @@ const InitCredentialRoute = (app) => {
                     });
 
                     req.session.refreshTokens.push(refreshToken);
-                    res.json({
+                    res.status(200).json({
                         credentialToken: {
                             accessToken: accessToken,
                             refreshToken: refreshToken
                         }
-                    }).status(200);
+                    });
                 });
             }).catch((err) => {
                 SequelizeErrorHandling(err, res);
@@ -149,8 +154,8 @@ const InitCredentialRoute = (app) => {
     })
 
     app.get(`/v${process.env.APP_MAJOR_VERSION}/auth/google/callback`, async (req, res) => {
-        if (!req.query) return res.send(UNIDENTIFIED_ERROR).status(404);
-        if (!req.query.code) return res.send(UNIDENTIFIED_ERROR).status(404);
+        if (!req.query) return res.status(404).send(UNIDENTIFIED_ERROR);
+        if (!req.query.code) return res.status(404).send(UNIDENTIFIED_ERROR);
         const code = req.query.code;
 
         // fetch OAUTH token
@@ -167,11 +172,11 @@ const InitCredentialRoute = (app) => {
             logTitle: GET_GOOGLE_OAUTH2_TOKEN
         });
 
-        if (!token) return res.send(UNIDENTIFIED_ERROR).status(404);
+        if (!token) return res.status(404).send(UNIDENTIFIED_ERROR);
         if (token.httpCode === 500) return res.sendStatus(500);
-        if (token.error) return res.send(token.errContent).status(token.httpCode);
+        if (token.error) return res.status(token.httpCode).send(token.errContent);
 
-        return res.json(token).status(200);
+        return res.status(200).json(token);
     });
 
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/google/login`, async (req, res) => {
@@ -188,16 +193,16 @@ const InitCredentialRoute = (app) => {
             logTitle: GET_GOOGLE_OAUTH2_SCOPE
         });
 
-        if (!googleUser) return res.send(UNIDENTIFIED_ERROR).status(404);
+        if (!googleUser) return res.status(404).send(UNIDENTIFIED_ERROR);
         if (googleUser.httpCode === 500) return res.sendStatus(500);
-        if (googleUser.error) return res.send(googleUser.errContent).status(googleUser.httpCode);
+        if (googleUser.error) return res.status(googleUser.httpCode).send(googleUser.errContent);
 
         // Generate the salt
         var salt = crypto.randomBytes(16);
         // Adding salt before encrypting the password
         // Hash the password with the SHA256 encryption function
         crypto.pbkdf2(generateGooglePass(), salt, 310000, 32, 'sha256', async function (err, hashedPassword) {
-            if (err) return res.send(err).status(400);
+            if (err) return res.status(400).send(err);
             const trx = await db.transaction();
             try {
                 const user = await MasterUser.findOne({
@@ -246,9 +251,9 @@ const InitCredentialRoute = (app) => {
                     logTitle: POST_SEND_EMAIL
                 });
 
-                if (!result) return res.send(UNIDENTIFIED_ERROR).status(404);
+                if (!result) return res.status(404).send(UNIDENTIFIED_ERROR);
                 if (result.httpCode === 500) return res.sendStatus(500);
-                if (result.error) return res.send(result.errContent).status(result.httpCode);
+                if (result.error) return res.status(result.httpCode).send(result.errContent);
 
                 // token will only save the desired user info
                 const accessToken = generateAccessToken(userInfo);
@@ -258,15 +263,15 @@ const InitCredentialRoute = (app) => {
                     email: userInfo.email
                 });
 
-                return res.json({
+                return res.status(200).json({
                     credentialToken: {
                         accessToken: accessToken,
                         refreshToken: refreshToken
                     }
-                }).status(200);
+                });
             } catch (error) {
                 await SequelizeRollback(trx, error);
-                return res.send(error).status(500);
+                return res.status(500).send(error);
             }
         });
     });
@@ -284,15 +289,16 @@ const InitCredentialRoute = (app) => {
         if (!req.body) return res.sendStatus(400);
 
         // Validate req body
-        if (!validateEmail(req.body.email)) res.send(INVALID_EMAIL);
-        if (!validateUserPhoneNumber(req.body.phoneNumber)) res.send(INVALID_PHONE_NUMBER);
+        if (!validateUsername(req.body.username)) return res.status(400).send(INVALID_USERNAME);
+        if (!validateEmail(req.body.email)) return res.status(400).send(INVALID_EMAIL);
+        if (!validatePassword(req.body.password)) return res.status(400).send(INVALID_PASSWORD);
 
         // Generate the salt
         var salt = crypto.randomBytes(16);
         // Adding salt before encrypting the password
         // Hash the password with the SHA256 encryption function
         crypto.pbkdf2(req.body.password, salt, 310000, 32, 'sha256', async function (err, hashedPassword) {
-            if (err) return res.send(err).status(400);
+            if (err) return res.status(400).send(err);
             const trx = await db.transaction();
             try {
                 const user = await MasterUser.findOne({
@@ -304,6 +310,7 @@ const InitCredentialRoute = (app) => {
                     },
                     transaction: trx
                 });
+
                 if (!user) {
                     await MasterUser.create({
                         username: req.body.username,
@@ -314,10 +321,11 @@ const InitCredentialRoute = (app) => {
                         await trx.commit();
                         return res.sendStatus(200);
                     });
-                } else return res.send(USER_HAS_ALREADY_BEEN_CREATED).status(409);
+                } else if (req.body.email === user.dataValues.email) return res.status(409).send(EMAIL_HAS_ALREADY_BEEN_USED);
+                else return res.status(409).send(USER_HAS_ALREADY_BEEN_CREATED);
             } catch (error) {
                 await SequelizeRollback(trx, error);
-                return res.send(UNIDENTIFIED_ERROR).status(500);
+                return res.status(500).send(UNIDENTIFIED_ERROR);
             }
         });
     });

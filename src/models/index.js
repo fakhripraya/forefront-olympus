@@ -2,7 +2,7 @@ const { db } = require("../config");
 require("./user/master_user");
 
 const InitModels = async () => {
-    await db.sync({ alter: true, force: false })
+    await db.sync({ alter: true, force: true })
         .then(() => {
             console.log("All models has been synchronized successfully.");
         }).catch((err) => {

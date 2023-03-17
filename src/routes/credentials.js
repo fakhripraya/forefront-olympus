@@ -11,7 +11,9 @@ const {
     POST_SEND_EMAIL,
     OTP_EMAIL,
     GET_GOOGLE_OAUTH2_TOKEN,
-    GET_GOOGLE_OAUTH2_SCOPE
+    GET_GOOGLE_OAUTH2_SCOPE,
+    ACCOUNT_SUCCESSFULLY_REGISTERED,
+    SEND_EMAIL_EXISTENCE
 } = require('../variables/general');
 const {
     generateAccessToken,
@@ -65,7 +67,7 @@ const InitCredentialRoute = (app) => {
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/verify/otp`, checkCredentialTokenOTP, (req, res) => {
         // check query param availability
         if (!req.body) return res.sendStatus(400);
-        if (!req.body.credentialToken) res.status(400).send(UNIDENTIFIED_ERROR);
+        if (!req.body.credentialToken) return res.status(400).send(UNIDENTIFIED_ERROR);
         if (new Date().getTime() >= req.user.OTPExpiration) return res.status(403).json(OTP_EXPIRED);
         if (req.body.OTPInput !== req.user.OTP) return res.status(403).json(OTP_UNMATCH);
 

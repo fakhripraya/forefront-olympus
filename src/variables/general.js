@@ -14,9 +14,11 @@ const GET_GOOGLE_OAUTH2_SCOPE = "GET_GOOGLE_OAUTH2_SCOPE";
 
 // EMAIL TYPE
 const SEND_OTP = "SEND_OTP";
+const SEND_EMAIL_EXISTENCE = "SEND_EMAIL_EXISTENCE";
 
 // EMAIL SUBJECT
-const OTP_EMAIL = "Account Registration - Here is your OTP number";
+const ACCOUNT_SUCCESSFULLY_REGISTERED = "Account Registration - Your account has been sucessfully registered";
+const OTP_EMAIL = "Account OTP Validation - Here is your OTP number";
 
 // API URLs
 const SEND_MAIL = `v${process.env.APP_MAILER_MAJOR_VERSION}/send`;
@@ -30,6 +32,8 @@ module.exports = {
     GET_GOOGLE_OAUTH2_TOKEN,
     GET_GOOGLE_OAUTH2_SCOPE,
     SEND_OTP,
+    SEND_EMAIL_EXISTENCE,
     SEND_MAIL,
+    ACCOUNT_SUCCESSFULLY_REGISTERED,
     OTP_EMAIL
 }

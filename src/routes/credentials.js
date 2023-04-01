@@ -30,7 +30,6 @@ const {
     WRONG_PASSWORD_INPUT,
     USER_NOT_FOUND,
     INVALID_EMAIL,
-    INVALID_PHONE_NUMBER,
     UNIDENTIFIED_ERROR,
     OTP_UNMATCH,
     OTP_EXPIRED,
@@ -40,12 +39,23 @@ const {
     INVALID_USERNAME
 } = require('../variables/responseMessage');
 const { POSTRequest } = require('../utils/axios/post');
-const { checkCredentialTokenOTP } = require('../utils/middleware');
+const {
+    checkCredentialTokenOTP,
+    checkCredentialToken,
+    checkNewPasswordRequestEligibility } = require('../utils/middleware');
 const { db } = require('../config/index');
 const { GETRequest } = require('../utils/axios/get');
 const { Op } = require("sequelize");
 
 const InitCredentialRoute = (app) => {
+
+    /*POST Method
+    * ROUTE: /{version}/auth/pw/token
+    * This route check the password token eligibility to validate user right for their password
+    */
+    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/pw/token`, checkNewPasswordRequestEligibility, (req, res) => {
+        return res.status(201);
+    });
 
     /*POST Method
     * ROUTE: /{version}/auth/token
@@ -100,6 +110,7 @@ const InitCredentialRoute = (app) => {
                     // put the necessary user info here
                     const userInfo = {
                         username: user.username,
+                        fullName: user.fullName,
                         email: user.email,
                         OTP: generateOTP().toString(),
                         OTPExpiration: new Date().getTime() + 1000 * 60 * 3, //Expired in 3 min
@@ -127,6 +138,7 @@ const InitCredentialRoute = (app) => {
                     const accessToken = generateAccessToken(userInfo);
                     const refreshToken = generateRefreshToken({
                         username: userInfo.username,
+                        fullName: userInfo.fullName,
                         phoneNumber: userInfo.phoneNumber,
                         email: userInfo.email
                     });
@@ -221,6 +233,7 @@ const InitCredentialRoute = (app) => {
                 if (!user) {
                     newUser = await MasterUser.create({
                         username: googleUser.response.email,
+                        fullName: googleUser.response.email,
                         googleId: googleUser.response.id,
                         email: googleUser.response.email,
                         profilePictureURI: googleUser.response.picture,
@@ -234,6 +247,7 @@ const InitCredentialRoute = (app) => {
                 // put the necessary user info here
                 const userInfo = {
                     username: newUser.username,
+                    fullName: newUser.fullName,
                     email: newUser.email,
                     OTP: generateOTP().toString(),
                     OTPExpiration: new Date().getTime() + 1000 * 60 * 3, //Expired in 3 min
@@ -261,6 +275,7 @@ const InitCredentialRoute = (app) => {
                 const accessToken = generateAccessToken(userInfo);
                 const refreshToken = generateRefreshToken({
                     username: userInfo.username,
+                    fullName: userInfo.fullName,
                     phoneNumber: userInfo.phoneNumber,
                     email: userInfo.email
                 });
@@ -316,6 +331,7 @@ const InitCredentialRoute = (app) => {
                 if (!user) {
                     await MasterUser.create({
                         username: req.body.username,
+                        fullName: req.body.username,
                         email: req.body.email,
                         hashedPassword: hashedPassword,
                         salt: salt
@@ -337,12 +353,17 @@ const InitCredentialRoute = (app) => {
     * This route will delete the refresh token from the session and log the user out.
     *
     */
-    app.delete(`/v${process.env.APP_MAJOR_VERSION}/auth/logout`, (req, res) => {
+    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/logout`, checkCredentialToken, (req, res) => {
         // check query param availability
         if (!req.body) return res.sendStatus(400);
         if (!req.session.refreshTokens) return res.sendStatus(403);
 
-        const refreshTokens = req.session.refreshTokens.filter(token => token !== req.body.token)
+        console.log(req.session.refreshTokens)
+        const refreshTokens = req.session.refreshTokens.filter(token => token !== req.body.token);
+        const removedIndex = req.session.refreshTokens.indexOf(refreshTokens);
+        req.session.refreshTokens.splice(removedIndex, 1);
+        console.log("after")
+        console.log(req.session.refreshTokens)
         return res.sendStatus(204)
     })
 }

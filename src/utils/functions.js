@@ -5,7 +5,7 @@ const {
     SEQUELIZE_VALIDATION_ERROR,
     SEQUELIZE_UNIQUE_CONSTRAINT_ERROR
 } = require('../variables/dbError');
-const { USER_HAS_ALREADY_BEEN_CREATED } = require('../variables/responseMessage');
+const { USER_HAS_ALREADY_BEEN_CREATED, SESSION_TOKEN_NOT_FOUND } = require('../variables/responseMessage');
 
 function generateAccessToken(user) {
     return jwt.sign(JSON.stringify(user), process.env.APP_ACCESS_TOKEN_SECRET)
@@ -18,12 +18,13 @@ function generateRefreshToken(user) {
 function renewToken(credentialToken, sessionRefreshTokens) {
     var result = { result: null, err: null, status: null };
     const refreshToken = credentialToken.refreshToken;
-    if (!sessionRefreshTokens.includes(refreshToken)) return result = { result: null, err: null, status: 403 };
+    if (!sessionRefreshTokens.includes(refreshToken)) return result = { result: null, err: SESSION_TOKEN_NOT_FOUND, status: 403 };
     jwt.verify(refreshToken, process.env.APP_REFRESH_TOKEN_SECRET, (err, user) => {
         if (err) return result = { result: null, err: err, status: 403 };
         // create renewed user
         const renewedUser = {
             username: user.username,
+            fullName: user.fullName,
             phoneNumber: user.phoneNumber,
             email: user.email,
             OTPVerified: true

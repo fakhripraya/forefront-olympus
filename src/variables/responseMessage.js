@@ -14,7 +14,7 @@ const USER_ACCESS_FORBIDDEN = "User access forbidden";
 const USER_NOT_FOUND = "User not found";
 const WRONG_PASSWORD_INPUT = "Please input the right password";
 const USER_NOT_VERIFY = "Please verify first";
-const WRONG_PASSWORD_TOKEN = "wrong password token";
+const INVALID_RECOVERY_TOKEN = "Invalid recovery token";
 
 // OTP
 const PLEASE_VERIFY_OTP = "PLEASE_VERIFY_OTP";
@@ -23,7 +23,7 @@ const OTP_UNMATCH = "Invalid OTP input";
 const SESSION_TOKEN_NOT_FOUND = "Session token not found or might be expired";
 
 // INTERNAL ERRORS
-const SESSION_ERROR = "no session detected";
+const CANT_VALIDATE_RECOVERY_TOKEN = "Can't validate recovery token";
 
 module.exports = {
     USER_HAS_ALREADY_BEEN_CREATED,
@@ -38,11 +38,11 @@ module.exports = {
     USER_NOT_FOUND,
     WRONG_PASSWORD_INPUT,
     UNIDENTIFIED_ERROR,
-    WRONG_PASSWORD_TOKEN,
+    INVALID_RECOVERY_TOKEN,
     USER_NOT_VERIFY,
     PLEASE_VERIFY_OTP,
     OTP_EXPIRED,
     OTP_UNMATCH,
     SESSION_TOKEN_NOT_FOUND,
-    SESSION_ERROR
+    CANT_VALIDATE_RECOVERY_TOKEN
 }

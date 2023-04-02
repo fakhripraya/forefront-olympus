@@ -1,14 +1,18 @@
 const jwt = require('jsonwebtoken');
 const {
     PLEASE_VERIFY_OTP,
-    WRONG_PASSWORD_TOKEN,
-    SESSION_ERROR } = require('../variables/responseMessage');
+    INVALID_RECOVERY_TOKEN,
+    CANT_VALIDATE_RECOVERY_TOKEN } = require('../variables/responseMessage');
 
 // Check the new password request eligibility
 function checkNewPasswordRequestEligibility(req, res, next) {
-    if (!req.session.newPasswordTokens) return res.status(500).send(SESSION_ERROR);
-    const newPasswordToken = req.session.newPasswordTokens.filter(token => token !== req.body.token);
-    if (!newPasswordToken) return res.status(403).send(WRONG_PASSWORD_TOKEN);
+    if (!req.session.recoveryTokens) return res.status(500).send(CANT_VALIDATE_RECOVERY_TOKEN);
+
+    const recoveryToken = req.session.recoveryTokens.filter(token => token === req.body.recoveryToken);
+    if (!recoveryToken || Object.keys(recoveryToken).length === 0) return res.status(403).send(INVALID_RECOVERY_TOKEN);
+
+    const removedIndex = req.session.recoveryTokens.indexOf(recoveryToken);
+    req.session.recoveryTokens.splice(removedIndex, 1);
     next();
 }
 

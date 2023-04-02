@@ -12,8 +12,8 @@ const {
     OTP_EMAIL,
     GET_GOOGLE_OAUTH2_TOKEN,
     GET_GOOGLE_OAUTH2_SCOPE,
-    ACCOUNT_SUCCESSFULLY_REGISTERED,
-    SEND_EMAIL_EXISTENCE
+    SEND_NEW_PASSWORD_REQUEST,
+    NEW_PASSWORD_REQUEST_EMAIL,
 } = require('../variables/general');
 const {
     generateAccessToken,
@@ -46,15 +46,67 @@ const {
 const { db } = require('../config/index');
 const { GETRequest } = require('../utils/axios/get');
 const { Op } = require("sequelize");
+const { uuid } = require('uuidv4');
 
 const InitCredentialRoute = (app) => {
+
+    /*POST Method
+        * ROUTE: /{version}/auth/pw/forgot
+        * This route submit the email of the users that forgot their password
+        */
+    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/pw/forgot`, async (req, res) => {
+
+        if (!req.body) return res.sendStatus(400);
+        if (!req.body.email) return res.status(400).send(INVALID_EMAIL);
+
+        // Request find one to the database via sequelize function
+        await MasterUser.findOne({ where: { email: req.body.email } })
+            .then(async (user) => {
+                if (!user) return res.status(404).send(USER_NOT_FOUND);
+
+                // put the necessary user info here
+                const recoveryToken = uuid();
+                const userInfo = {
+                    username: user.username,
+                    fullName: user.fullName,
+                    email: user.email,
+                    token: recoveryToken
+                }
+
+                // save the token in the session
+                if (!req.session.recoveryTokens) req.session.recoveryTokens = [];
+                req.session.recoveryTokens.push(recoveryToken);
+
+                // send email OTP to user
+                const result = await POSTRequest({
+                    endpoint: process.env.APP_MAILER_HOST_PORT,
+                    url: SEND_MAIL,
+                    data: {
+                        receiver: req.body.email,
+                        subject: NEW_PASSWORD_REQUEST_EMAIL,
+                        mailType: SEND_NEW_PASSWORD_REQUEST,
+                        props: userInfo
+                    },
+                    logTitle: POST_SEND_EMAIL
+                });
+
+                if (!result) return res.status(404).send(UNIDENTIFIED_ERROR);
+                if (result.httpCode === 500) return res.sendStatus(500);
+                if (result.error) return res.status(result.httpCode).send(result.errContent);
+
+                return res.sendStatus(250);
+            }).catch((err) => {
+                SequelizeErrorHandling(err, res);
+            });
+
+    });
 
     /*POST Method
     * ROUTE: /{version}/auth/pw/token
     * This route check the password token eligibility to validate user right for their password
     */
-    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/pw/token`, checkNewPasswordRequestEligibility, (req, res) => {
-        return res.status(201);
+    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/pw/new`, checkNewPasswordRequestEligibility, (req, res) => {
+        return res.sendStatus(202);
     });
 
     /*POST Method
@@ -358,12 +410,11 @@ const InitCredentialRoute = (app) => {
         if (!req.body) return res.sendStatus(400);
         if (!req.session.refreshTokens) return res.sendStatus(403);
 
-        console.log(req.session.refreshTokens)
-        const refreshTokens = req.session.refreshTokens.filter(token => token !== req.body.token);
+        const refreshTokens = req.session.refreshTokens.filter(token => token === req.body.credentialToken.refreshToken);
+        if (!refreshTokens || Object.keys(refreshTokens).length === 0) return res.sendStatus(500);
+
         const removedIndex = req.session.refreshTokens.indexOf(refreshTokens);
         req.session.refreshTokens.splice(removedIndex, 1);
-        console.log("after")
-        console.log(req.session.refreshTokens)
         return res.sendStatus(204)
     })
 }

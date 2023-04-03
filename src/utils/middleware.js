@@ -6,13 +6,11 @@ const {
 
 // Check the new password request eligibility
 function checkNewPasswordRequestEligibility(req, res, next) {
-    if (!req.session.recoveryTokens) return res.status(500).send(CANT_VALIDATE_RECOVERY_TOKEN);
+    if (!req.session.recoveryInfo) return res.status(500).send(CANT_VALIDATE_RECOVERY_TOKEN);
 
-    const recoveryToken = req.session.recoveryTokens.filter(token => token === req.body.recoveryToken);
-    if (!recoveryToken || Object.keys(recoveryToken).length === 0) return res.status(403).send(INVALID_RECOVERY_TOKEN);
+    const recoveryInfo = req.session.recoveryInfo.filter(userInfo => userInfo.token === req.body.recoveryToken);
+    if (!recoveryInfo || Object.keys(recoveryInfo).length === 0) return res.status(403).send(INVALID_RECOVERY_TOKEN);
 
-    const removedIndex = req.session.recoveryTokens.indexOf(recoveryToken);
-    req.session.recoveryTokens.splice(removedIndex, 1);
     next();
 }
 

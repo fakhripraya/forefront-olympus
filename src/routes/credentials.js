@@ -186,6 +186,7 @@ const InitCredentialRoute = (app) => {
     * The tokens can be use to manage the authentication flow of the user
     */
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/login`, async (req, res) => {
+        console.log(process.env.APP_STATE)
         // check query param availability
         if (!req.body) return res.sendStatus(400);
         // Get the request body

@@ -7,6 +7,7 @@ const { CORSConfiguration } = require("./connection");
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const session = require('express-session');
+const { PROD, PREPROD } = require('../variables/general');
 
 const AppConfig = (app, express) => {
     // Express app config
@@ -28,7 +29,10 @@ const AppConfig = (app, express) => {
     // Establish session configuration
     app.use(session({
         secret: process.env.APP_SESSION_SECRET,
-        cookie: { maxAge: 3 * 60 * 60 * 1000 },
+        cookie: {
+            secure: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD,
+            maxAge: 3 * 60 * 60 * 1000
+        },
         resave: false, // don't save session if unmodified
         saveUninitialized: false, // don't create session until something stored
         store: sequelizeSessionStore

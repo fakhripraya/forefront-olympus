@@ -12,6 +12,11 @@ const POST_SEND_EMAIL = "POST_SEND_EMAIL";
 const GET_GOOGLE_OAUTH2_TOKEN = "GET_GOOGLE_OAUTH2_TOKEN";
 const GET_GOOGLE_OAUTH2_SCOPE = "GET_GOOGLE_OAUTH2_SCOPE";
 
+// APP STATE
+const DEV = "DEV";
+const PREPROD = "PREPROD";
+const PROD = "PROD";
+
 // EMAIL TYPE
 const SEND_OTP = "SEND_OTP";
 const SEND_EMAIL_EXISTENCE = "SEND_EMAIL_EXISTENCE";
@@ -26,6 +31,9 @@ const NEW_PASSWORD_REQUEST_EMAIL = "New Password Request - Please click this lin
 const SEND_MAIL = `v${process.env.APP_MAILER_MAJOR_VERSION}/send`;
 
 module.exports = {
+    DEV,
+    PREPROD,
+    PROD,
     USER,
     SUCCESS,
     POST,

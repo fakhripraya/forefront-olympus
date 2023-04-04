@@ -32,7 +32,6 @@ const AppConfig = (app, express) => {
         cookie: {
             secure: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD,
             httpOnly: true,
-            sameSite: "none", // I add this line
             maxAge: 3 * 60 * 60 * 1000
         },
         resave: false, // don't save session if unmodified

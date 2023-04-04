@@ -26,6 +26,8 @@ const AppConfig = (app, express) => {
     // Tool to parse cookie
     app.use(cookieParser());
 
+    console.log(process.env.APP_STATE)
+
     // Establish session configuration
     app.use(session({
         secret: process.env.APP_SESSION_SECRET,

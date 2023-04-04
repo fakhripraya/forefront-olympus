@@ -14,6 +14,8 @@ const {
     GET_GOOGLE_OAUTH2_SCOPE,
     SEND_NEW_PASSWORD_REQUEST,
     NEW_PASSWORD_REQUEST_EMAIL,
+    PROD,
+    PREPROD,
 } = require('../variables/general');
 const {
     generateAccessToken,

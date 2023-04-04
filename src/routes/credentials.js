@@ -187,6 +187,7 @@ const InitCredentialRoute = (app) => {
     */
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/login`, async (req, res) => {
         console.log(process.env.APP_STATE)
+        console.log(process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD)
         // check query param availability
         if (!req.body) return res.sendStatus(400);
         // Get the request body

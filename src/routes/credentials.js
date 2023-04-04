@@ -76,7 +76,7 @@ const InitCredentialRoute = (app) => {
                 }
 
                 // save the token in the session
-                req.session.recoveryInfo = [];
+                req.session.recoveryInfo = new Array();
                 req.session.recoveryInfo.push(userInfo);
 
                 // send email OTP to user
@@ -199,7 +199,7 @@ const InitCredentialRoute = (app) => {
                 crypto.pbkdf2(reqUser.password, user.salt, 310000, 32, 'sha256', async function (err, hashedPassword) {
                     if (err) res.status(500).send(err);
                     if (!crypto.timingSafeEqual(user.hashedPassword, hashedPassword)) return res.status(403).send(WRONG_PASSWORD_INPUT);
-                    req.session.refreshTokens = [];
+                    req.session.refreshTokens = new Array();
 
                     // put the necessary user info here
                     const userInfo = {
@@ -290,7 +290,7 @@ const InitCredentialRoute = (app) => {
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/google/login`, async (req, res) => {
         // check query param availability
         if (!req.body) return res.sendStatus(400);
-        req.session.refreshTokens = [];
+        req.session.refreshTokens = new Array();
         // get OAUTH token
         const googleUser = await GETRequest({
             endpoint: "https://www.googleapis.com",

@@ -31,11 +31,10 @@ const AppConfig = (app, express) => {
         secret: process.env.APP_SESSION_SECRET,
         cookie: {
             secure: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD,
-            httpOnly: true,
             maxAge: 3 * 60 * 60 * 1000
         },
         resave: false, // don't save session if unmodified
-        saveUninitialized: false, // don't create session until something stored
+        saveUninitialized: true, // don't create session until something stored
         store: sequelizeSessionStore
     }));
     // const csrfProtection = csrf({

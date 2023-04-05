@@ -30,7 +30,7 @@ const AppConfig = (app, express) => {
     app.use(session({
         secret: process.env.APP_SESSION_SECRET,
         cookie: {
-            secure: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD,
+            secure: true,
             maxAge: 3 * 60 * 60 * 1000
         },
         resave: false, // don't save session if unmodified

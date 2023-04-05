@@ -23,7 +23,7 @@ const OTP_UNMATCH = "Invalid OTP input";
 const SESSION_TOKEN_NOT_FOUND = "Session token not found or might be expired";
 
 // INTERNAL ERRORS
-const CANT_VALIDATE_RECOVERY_TOKEN = "Can't validate recovery token or the token might have been used\n\n Please request the recovery email again";
+const CANT_VALIDATE_RECOVERY_TOKEN = "Can't validate recovery token or the token might have been used\n Please request the password recovery email again";
 
 module.exports = {
     USER_HAS_ALREADY_BEEN_CREATED,

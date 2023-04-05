@@ -175,6 +175,8 @@ const InitCredentialRoute = (app) => {
         if (new Date().getTime() >= req.user.OTPExpiration) return res.status(403).json(OTP_EXPIRED);
         if (req.body.OTPInput !== req.user.OTP) return res.status(403).json(OTP_UNMATCH);
 
+        console.log('/auth/verify/otp')
+        console.log(req.session.refreshTokens);
         // If OTP valid, redirect to renew token
         const { result, err, status } = renewToken(req.body.credentialToken, req.session.refreshTokens);
         if (status !== 200) return res.status(status).send(err);
@@ -450,6 +452,8 @@ const InitCredentialRoute = (app) => {
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/logout`, checkCredentialToken, (req, res) => {
         // check query param availability
         if (!req.body) return res.sendStatus(400);
+        console.log('/auth/logout')
+        console.log(req.session.refreshTokens);
         if (!req.session.refreshTokens) return res.sendStatus(403);
 
         const refreshTokens = req.session.refreshTokens.filter(token => token === req.body.credentialToken.refreshToken);

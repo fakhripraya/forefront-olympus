@@ -16,11 +16,17 @@ function generateRefreshToken(user) {
 }
 
 function renewToken(credentialToken, sessionRefreshTokens) {
+    // Init result
     var result = { result: null, err: null, status: null };
     const refreshToken = credentialToken.refreshToken;
-    if (!sessionRefreshTokens.includes(refreshToken)) return result = { result: null, err: SESSION_TOKEN_NOT_FOUND, status: 403 };
+
+    // Check the session token 
+    if (!sessionRefreshTokens) return result = { result: null, err: SESSION_TOKEN_NOT_FOUND, status: 401 };
+    if (!sessionRefreshTokens.includes(refreshToken)) return result = { result: null, err: SESSION_TOKEN_NOT_FOUND, status: 401 };
+
+    // Verify the JWT token
     jwt.verify(refreshToken, process.env.APP_REFRESH_TOKEN_SECRET, (err, user) => {
-        if (err) return result = { result: null, err: err, status: 403 };
+        if (err) return result = { result: null, err: err, status: 500 };
         // create renewed user
         const renewedUser = {
             username: user.username,

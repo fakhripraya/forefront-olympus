@@ -38,7 +38,8 @@ const {
     USER_HAS_ALREADY_BEEN_CREATED,
     INVALID_PASSWORD,
     EMAIL_HAS_ALREADY_BEEN_USED,
-    INVALID_USERNAME
+    INVALID_USERNAME,
+    USER_UNAUTHORIZED
 } = require('../variables/responseMessage');
 const { POSTRequest } = require('../utils/axios/post');
 const {
@@ -58,7 +59,7 @@ const InitCredentialRoute = (app) => {
         */
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/pw/forgot`, async (req, res) => {
         // check query param availability
-        if (!req.body) return res.sendStatus(400);
+        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
         if (!req.body.email) return res.status(400).send(INVALID_EMAIL);
 
         // Request find one to the database via sequelize function
@@ -117,7 +118,7 @@ const InitCredentialRoute = (app) => {
     */
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/pw/new`, checkNewPasswordRequestEligibility, async (req, res) => {
         // check query param availability
-        if (!req.body) return res.sendStatus(400);
+        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
         if (!validatePassword(req.body.newPassword)) return res.status(400).send(INVALID_PASSWORD);
         if (!validatePassword(req.body.confirmPassword)) return res.status(400).send(INVALID_PASSWORD);
 
@@ -136,13 +137,12 @@ const InitCredentialRoute = (app) => {
                     where: { email: req.session.recoveryInfo[0].email },
                     transaction: trx
                 }).then(async function (result) {
-                    console.log(result)
                     await trx.commit();
                     return res.sendStatus(200);
                 }).catch((err) => {
                     SequelizeErrorHandling(err, res);
                 }).finally(() => {
-                    req.session.recoveryInfo = null;
+                    req.session.destroy();
                 });
             } catch (error) {
                 await SequelizeRollback(trx, error);
@@ -155,10 +155,12 @@ const InitCredentialRoute = (app) => {
     * ROUTE: /{version}/auth/token
     * This route refresh/renew the access token by generating a new one and replace it in the session.
     */
-    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/token`, (req, res) => {
+    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/token`, checkCredentialToken, (req, res) => {
         // check query param availability
-        if (!req.body) return res.sendStatus(400);
-        if (!req.body.credentialToken) return res.sendStatus(401);
+        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
+        if (!req.body.credentialToken) return res.status(401).send(USER_UNAUTHORIZED);
+
+        // Renew the token
         const { result, err, status } = renewToken(req.body.credentialToken, req.session.refreshTokens);
         if (status !== 200) return res.status(status).send(err);
         return res.status(status).json(result);
@@ -170,13 +172,14 @@ const InitCredentialRoute = (app) => {
     */
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/verify/otp`, checkCredentialTokenOTP, (req, res) => {
         // check query param availability
-        if (!req.body) return res.sendStatus(400);
-        if (!req.body.credentialToken) return res.status(400).send(UNIDENTIFIED_ERROR);
+        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
+        if (!req.body.credentialToken) return res.status(401).send(USER_UNAUTHORIZED);
+
+        // Check the OTP validation
         if (new Date().getTime() >= req.user.OTPExpiration) return res.status(403).json(OTP_EXPIRED);
         if (req.body.OTPInput !== req.user.OTP) return res.status(403).json(OTP_UNMATCH);
 
-        console.log('/auth/verify/otp')
-        console.log(req.session.refreshTokens);
+        // Renew the token
         // If OTP valid, redirect to renew token
         const { result, err, status } = renewToken(req.body.credentialToken, req.session.refreshTokens);
         if (status !== 200) return res.status(status).send(err);
@@ -191,9 +194,11 @@ const InitCredentialRoute = (app) => {
     */
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/login`, async (req, res) => {
         // check query param availability
-        if (!req.body) return res.sendStatus(400);
+        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
+
         // Get the request body
         const reqUser = req.body;
+
         // Request find one to the database via sequelize function
         await MasterUser.findOne({ where: { username: reqUser.username } })
             .then((user) => {
@@ -291,8 +296,11 @@ const InitCredentialRoute = (app) => {
 
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/google/login`, async (req, res) => {
         // check query param availability
-        if (!req.body) return res.sendStatus(400);
+        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
+
+        // Initialize session
         req.session.refreshTokens = new Array();
+
         // get OAUTH token
         const googleUser = await GETRequest({
             endpoint: "https://www.googleapis.com",
@@ -309,6 +317,7 @@ const InitCredentialRoute = (app) => {
 
         // Generate the salt
         var salt = crypto.randomBytes(16);
+
         // Adding salt before encrypting the password
         // Hash the password with the SHA256 encryption function
         crypto.pbkdf2(generateGooglePass(), salt, 310000, 32, 'sha256', async function (err, hashedPassword) {
@@ -399,7 +408,7 @@ const InitCredentialRoute = (app) => {
     */
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/signup`, async (req, res) => {
         // check query param availability
-        if (!req.body) return res.sendStatus(400);
+        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
 
         // Validate req body
         if (!validateUsername(req.body.username)) return res.status(400).send(INVALID_USERNAME);
@@ -408,6 +417,7 @@ const InitCredentialRoute = (app) => {
 
         // Generate the salt
         var salt = crypto.randomBytes(16);
+
         // Adding salt before encrypting the password
         // Hash the password with the SHA256 encryption function
         crypto.pbkdf2(req.body.password, salt, 310000, 32, 'sha256', async function (err, hashedPassword) {
@@ -449,18 +459,18 @@ const InitCredentialRoute = (app) => {
     * This route will delete the refresh token from the session and log the user out.
     *
     */
-    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/logout`, checkCredentialToken, (req, res) => {
+    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/logout`, (req, res) => {
         // check query param availability
-        if (!req.body) return res.sendStatus(400);
-        console.log('/auth/logout')
-        console.log(req.session.refreshTokens);
-        if (!req.session.refreshTokens) return res.sendStatus(403);
+        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
+        if (!req.session) return res.sendStatus(200);
+        if (!req.session.refreshTokens) return res.sendStatus(200);
 
+        // filter session token and destroy
         const refreshTokens = req.session.refreshTokens.filter(token => token === req.body.credentialToken.refreshToken);
         if (!refreshTokens || Object.keys(refreshTokens).length === 0) return res.sendStatus(500);
+        req.session.destroy();
 
-        req.session.refreshTokens = null;
-        return res.sendStatus(204)
+        return res.sendStatus(200)
     })
 }
 

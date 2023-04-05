@@ -29,8 +29,11 @@ const AppConfig = (app, express) => {
     // Establish session configuration
     app.use(session({
         secret: process.env.APP_SESSION_SECRET,
+        name: 'olympus-session',
         cookie: {
-            secure: true,
+            sameSite: 'none', // in order to response to both first-party and cross-site requests
+            secure: 'auto', // it should set automatically to secure if is https.
+            httpOnly: true,
             maxAge: 3 * 60 * 60 * 1000
         },
         resave: false, // don't save session if unmodified

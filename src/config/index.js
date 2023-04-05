@@ -38,7 +38,8 @@ const AppConfig = (app, express) => {
             maxAge: 3 * 60 * 60 * 1000
         },
         resave: false, // don't save session if unmodified
-        saveUninitialized: true, // don't create session until something stored
+        rolling: true, // refresh the session max age on every response 
+        saveUninitialized: false,
         store: sequelizeSessionStore
     }));
     // const csrfProtection = csrf({

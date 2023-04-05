@@ -467,7 +467,7 @@ const InitCredentialRoute = (app) => {
 
         // filter session token and destroy
         const refreshTokens = req.session.refreshTokens.filter(token => token === req.body.credentialToken.refreshToken);
-        if (!refreshTokens || Object.keys(refreshTokens).length === 0) return res.sendStatus(500);
+        if (!refreshTokens || Object.keys(refreshTokens).length === 0) return res.sendStatus(403);
         req.session.destroy();
 
         return res.sendStatus(200)

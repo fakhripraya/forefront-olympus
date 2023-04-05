@@ -16,6 +16,7 @@ const AppConfig = (app, express) => {
     app.use(express.json());
     app.use(express.urlencoded({ extended: false }));
 
+    if (process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD) app.set("trust proxy", 1);
     // CORS establishment
     app.use(cors({
         origin: CORSConfiguration(),

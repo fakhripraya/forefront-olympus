@@ -15,6 +15,7 @@ const USER_NOT_FOUND = "User not found";
 const WRONG_PASSWORD_INPUT = "Please input the right password";
 const USER_NOT_VERIFY = "Please verify first";
 const INVALID_RECOVERY_TOKEN = "Invalid recovery token";
+const UNDEFINED_QUERY_PARAM = "Can't fetch query param value.";
 
 // OTP
 const PLEASE_VERIFY_OTP = "PLEASE_VERIFY_OTP";
@@ -24,6 +25,7 @@ const SESSION_TOKEN_NOT_FOUND = "Session token not found or might be expired";
 
 // INTERNAL ERRORS
 const CANT_VALIDATE_RECOVERY_TOKEN = "Can't validate recovery token or the token might have been used. Please request the password recovery email again";
+const INTERNAL_ERROR_CANT_COMMUNICATE = "INTERNAL ERROR: Can't communicate with the other services.";
 
 module.exports = {
     USER_HAS_ALREADY_BEEN_CREATED,
@@ -44,5 +46,7 @@ module.exports = {
     OTP_EXPIRED,
     OTP_UNMATCH,
     SESSION_TOKEN_NOT_FOUND,
-    CANT_VALIDATE_RECOVERY_TOKEN
+    CANT_VALIDATE_RECOVERY_TOKEN,
+    INTERNAL_ERROR_CANT_COMMUNICATE,
+    UNDEFINED_QUERY_PARAM
 }

@@ -14,8 +14,6 @@ const {
     GET_GOOGLE_OAUTH2_SCOPE,
     SEND_NEW_PASSWORD_REQUEST,
     NEW_PASSWORD_REQUEST_EMAIL,
-    PROD,
-    PREPROD,
 } = require('../variables/general');
 const {
     generateAccessToken,
@@ -39,7 +37,9 @@ const {
     INVALID_PASSWORD,
     EMAIL_HAS_ALREADY_BEEN_USED,
     INVALID_USERNAME,
-    USER_UNAUTHORIZED
+    USER_UNAUTHORIZED,
+    UNDEFINED_QUERY_PARAM,
+    INTERNAL_ERROR_CANT_COMMUNICATE
 } = require('../variables/responseMessage');
 const { POSTRequest } = require('../utils/axios/post');
 const {
@@ -212,6 +212,7 @@ const InitCredentialRoute = (app) => {
                     const userInfo = {
                         username: user.username,
                         fullName: user.fullName,
+                        phoneNumber: user.phoneNumber,
                         email: user.email,
                         OTP: generateOTP().toString(),
                         OTPExpiration: new Date().getTime() + 1000 * 60 * 3, //Expired in 3 min
@@ -232,7 +233,7 @@ const InitCredentialRoute = (app) => {
                     });
 
                     if (!result) return res.status(404).send(UNIDENTIFIED_ERROR);
-                    if (result.httpCode === 500) return res.sendStatus(500);
+                    if (result.httpCode === 500) return res.status(500).send(INTERNAL_ERROR_CANT_COMMUNICATE);
                     if (result.error) return res.status(result.httpCode).send(result.errContent);
 
                     // token will only save the desired user info
@@ -258,7 +259,7 @@ const InitCredentialRoute = (app) => {
     });
 
     /*GET Method
-    * ROUTE: /{version}/auth/google
+    * ROUTE: /{version}/auth/google/url
     * This route authenticates the user by verifying user google account.
     *
     * An authentication form will be prompted in the client service, which
@@ -268,11 +269,10 @@ const InitCredentialRoute = (app) => {
         return res.send(getGoogleAuthURL());
     })
 
-    app.get(`/v${process.env.APP_MAJOR_VERSION}/auth/google/callback`, async (req, res) => {
-        if (!req.query) return res.status(404).send(UNIDENTIFIED_ERROR);
-        if (!req.query.code) return res.status(404).send(UNIDENTIFIED_ERROR);
+    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/google/callback`, async (req, res) => {
+        if (!req.query) return res.status(404).send(UNDEFINED_QUERY_PARAM);
+        if (!req.query.code) return res.status(404).send(UNDEFINED_QUERY_PARAM);
         const code = req.query.code;
-
         // fetch OAUTH token
         const token = await POSTRequest({
             endpoint: "https://oauth2.googleapis.com",
@@ -281,7 +281,8 @@ const InitCredentialRoute = (app) => {
                 code,
                 client_id: process.env.APP_GOOGLE_CLIENT_ID,
                 client_secret: process.env.APP_GOOGLE_CLIENT_SECRET,
-                redirect_uri: `${process.env.APP_GOOGLE_CLIENT_AUTHORIZED_CALLBACK_URI}/v${process.env.APP_MAJOR_VERSION}/auth/google/callback`,
+                // redirect_uri: `${process.env.APP_GOOGLE_CLIENT_AUTHORIZED_CALLBACK_URI}/v${process.env.APP_MAJOR_VERSION}/auth/google/callback`,
+                redirect_uri: `${process.env.APP_GOOGLE_CLIENT_AUTHORIZED_CALLBACK_URI}`,
                 grant_type: "authorization_code",
             },
             logTitle: GET_GOOGLE_OAUTH2_TOKEN
@@ -291,22 +292,15 @@ const InitCredentialRoute = (app) => {
         if (token.httpCode === 500) return res.sendStatus(500);
         if (token.error) return res.status(token.httpCode).send(token.errContent);
 
-        return res.status(200).json(token);
-    });
-
-    app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/google/login`, async (req, res) => {
-        // check query param availability
-        if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);
-
         // Initialize session
         req.session.refreshTokens = new Array();
 
         // get OAUTH token
         const googleUser = await GETRequest({
             endpoint: "https://www.googleapis.com",
-            url: `/oauth2/v1/userinfo?alt=json&access_token=${req.body.access_token}`,
+            url: `/oauth2/v1/userinfo?alt=json&access_token=${token.response.access_token}`,
             headers: {
-                Authorization: `Bearer ${req.body.id_token}`,
+                Authorization: `Bearer ${token.response.id_token}`,
             },
             logTitle: GET_GOOGLE_OAUTH2_SCOPE
         });
@@ -353,39 +347,18 @@ const InitCredentialRoute = (app) => {
                 const userInfo = {
                     username: newUser.username,
                     fullName: newUser.fullName,
+                    phoneNumber: newUser.phoneNumber,
                     email: newUser.email,
-                    OTP: generateOTP().toString(),
-                    OTPExpiration: new Date().getTime() + 1000 * 60 * 3, //Expired in 3 min
-                    OTPVerified: false
+                    OTPVerified: true
                 }
-
-                // send email OTP to user
-                const result = await POSTRequest({
-                    endpoint: process.env.APP_MAILER_HOST_PORT,
-                    url: SEND_MAIL,
-                    data: {
-                        receiver: newUser.email,
-                        subject: OTP_EMAIL,
-                        mailType: SEND_OTP,
-                        props: userInfo
-                    },
-                    logTitle: POST_SEND_EMAIL
-                });
-
-                if (!result) return res.status(404).send(UNIDENTIFIED_ERROR);
-                if (result.httpCode === 500) return res.sendStatus(500);
-                if (result.error) return res.status(result.httpCode).send(result.errContent);
 
                 // token will only save the desired user info
                 const accessToken = generateAccessToken(userInfo);
-                const refreshToken = generateRefreshToken({
-                    username: userInfo.username,
-                    fullName: userInfo.fullName,
-                    phoneNumber: userInfo.phoneNumber,
-                    email: userInfo.email
-                });
+                const refreshToken = generateRefreshToken(userInfo);
+                req.session.refreshTokens.push(refreshToken);
 
                 return res.status(200).json({
+                    user: userInfo,
                     credentialToken: {
                         accessToken: accessToken,
                         refreshToken: refreshToken

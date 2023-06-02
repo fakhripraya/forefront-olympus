@@ -30,7 +30,7 @@ const AppConfig = (app, express) => {
     // Establish session configuration
     app.use(session({
         secret: process.env.APP_SESSION_SECRET,
-        name: 'OLYMPUS-SESSION',
+        name: 'FOREFRONT-SESSION',
         cookie: {
             sameSite: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD ? 'none' : false, // in order to response to both first-party and cross-site requests
             secure: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD, // it should set automatically to secure if is https.

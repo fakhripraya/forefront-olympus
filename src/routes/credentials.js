@@ -54,9 +54,9 @@ const { uuid } = require('uuidv4');
 const InitCredentialRoute = (app) => {
 
     /*POST Method
-        * ROUTE: /{version}/auth/pw/forgot
-        * This route submit the email of the users that forgot their password
-        */
+    * ROUTE: /{version}/auth/pw/forgot
+    * This route submit the email of the users that forgot their password
+    */
     app.post(`/v${process.env.APP_MAJOR_VERSION}/auth/pw/forgot`, async (req, res) => {
         // check query param availability
         if (!req.body) return res.status(400).send(UNIDENTIFIED_ERROR);

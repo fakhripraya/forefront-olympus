@@ -23,7 +23,6 @@ const MasterUser = db.define("MasterUser", {
     },
     username: {
         allowNull: false,
-        unique: true,
         type: DataTypes.STRING,
     },
     fullName: {
@@ -64,6 +63,9 @@ const MasterUser = db.define("MasterUser", {
         type: DataTypes.BLOB,
     },
 }, {
+    indexes: [
+        { unique: true, fields: ["username"] },
+    ],
     paranoid: true,
     deletedAt: 'destroyTime',
     tableName: 'master_user'

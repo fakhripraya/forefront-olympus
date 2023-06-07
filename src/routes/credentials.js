@@ -210,6 +210,7 @@ const InitCredentialRoute = (app) => {
 
                     // put the necessary user info here
                     const userInfo = {
+                        userId: user.id,
                         username: user.username,
                         fullName: user.fullName,
                         phoneNumber: user.phoneNumber,
@@ -239,6 +240,7 @@ const InitCredentialRoute = (app) => {
                     // token will only save the desired user info
                     const accessToken = generateAccessToken(userInfo);
                     const refreshToken = generateRefreshToken({
+                        userId: userInfo.userId,
                         username: userInfo.username,
                         fullName: userInfo.fullName,
                         phoneNumber: userInfo.phoneNumber,
@@ -345,6 +347,7 @@ const InitCredentialRoute = (app) => {
 
                 // put the necessary user info here
                 const userInfo = {
+                    userId: newUser.id,
                     username: newUser.username,
                     fullName: newUser.fullName,
                     phoneNumber: newUser.phoneNumber,
@@ -366,7 +369,7 @@ const InitCredentialRoute = (app) => {
                 });
             } catch (error) {
                 await SequelizeRollback(trx, error);
-                return res.status(500).send(error);
+                SequelizeErrorHandling(error, res);
             }
         });
     });
@@ -422,7 +425,7 @@ const InitCredentialRoute = (app) => {
                 else return res.status(409).send(USER_HAS_ALREADY_BEEN_CREATED);
             } catch (error) {
                 await SequelizeRollback(trx, error);
-                return res.status(500).send(UNIDENTIFIED_ERROR);
+                SequelizeErrorHandling(error, res);
             }
         });
     });

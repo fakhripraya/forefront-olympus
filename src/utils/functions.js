@@ -5,7 +5,7 @@ const {
     SEQUELIZE_VALIDATION_ERROR,
     SEQUELIZE_UNIQUE_CONSTRAINT_ERROR
 } = require('../variables/dbError');
-const { USER_HAS_ALREADY_BEEN_CREATED, SESSION_TOKEN_NOT_FOUND } = require('../variables/responseMessage');
+const { USER_HAS_ALREADY_BEEN_CREATED, SESSION_TOKEN_NOT_FOUND, UNIDENTIFIED_ERROR } = require('../variables/responseMessage');
 
 function generateAccessToken(user) {
     return jwt.sign(JSON.stringify(user), process.env.APP_ACCESS_TOKEN_SECRET)
@@ -18,7 +18,7 @@ function generateRefreshToken(user) {
 function renewToken(credentialToken, sessionRefreshTokens) {
     // Init result
     var result = { result: null, err: null, status: null };
-    const refreshToken = credentialToken.refreshToken;
+    let refreshToken = credentialToken.refreshToken;
 
     // Check the session token 
     if (!sessionRefreshTokens) return result = { result: null, err: SESSION_TOKEN_NOT_FOUND, status: 401 };
@@ -29,6 +29,7 @@ function renewToken(credentialToken, sessionRefreshTokens) {
         if (err) return result = { result: null, err: err, status: 500 };
         // create renewed user
         const renewedUser = {
+            userId: user.userId,
             username: user.username,
             fullName: user.fullName,
             phoneNumber: user.phoneNumber,
@@ -38,6 +39,7 @@ function renewToken(credentialToken, sessionRefreshTokens) {
 
         // generate new token
         const accessToken = generateAccessToken(renewedUser);
+        refreshToken = generateRefreshToken(renewedUser);
         return result = {
             result: {
                 user: renewedUser,
@@ -70,7 +72,6 @@ function getGoogleAuthURL() {
 }
 
 function SequelizeErrorHandling(err, res) {
-    console.log(err);
     var errMessages = [];
     // if the DB error is database error
     if (err.name === SEQUELIZE_DATABASE_ERROR) return res.status(500).send({
@@ -91,7 +92,7 @@ function SequelizeErrorHandling(err, res) {
             ...errMessages,
             possibility: USER_HAS_ALREADY_BEEN_CREATED
         });
-    }
+    } else return res.status(500).send(UNIDENTIFIED_ERROR);
 }
 
 function generateOTP() {

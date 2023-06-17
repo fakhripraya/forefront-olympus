@@ -1,30 +1,30 @@
 // GENERALS ERRORS
-const UNIDENTIFIED_ERROR = "Something went wrong, please contact the support if you found this error !";
+const UNIDENTIFIED_ERROR = "Ada yang salah ni kawan, coba kontak customer service ya biar kamu dibantuin !";
 
 // CREDENTIALS ERRORS
-const USER_HAS_ALREADY_BEEN_CREATED = "User has already been created";
-const EMAIL_HAS_ALREADY_BEEN_USED = "Email has already been used";
-const INVALID_USERNAME = "Please input the valid username \n\n 1. Username need to at least contains 8 or more characters";
-const INVALID_EMAIL = "Please input the valid email \n\n 1. Email must follow the standard email pattern";
-const INVALID_KTP = "Please input the valid KTP ID";
-const INVALID_PHONE_NUMBER = "Please input the valid phone number";
-const INVALID_PASSWORD = "Please input the valid password \n\n 1.Password at least consist of 8 characters \n\n 2.Password at least has one uppercase letter \n\n 3.Password at least has one lowercase letter \n\n 4.Password at least has one number \n\n 5.Password at least has one of these special characters (@$!%*?&)";
-const USER_UNAUTHORIZED = "User unauthorized";
-const USER_ACCESS_FORBIDDEN = "User access forbidden";
-const USER_NOT_FOUND = "User not found";
-const WRONG_PASSWORD_INPUT = "Please input the right password";
-const USER_NOT_VERIFY = "Please verify first";
-const INVALID_RECOVERY_TOKEN = "Invalid recovery token";
+const USER_HAS_ALREADY_BEEN_CREATED = "User dengan username tersebut sudah ada.";
+const EMAIL_HAS_ALREADY_BEEN_USED = "Email sudah pernah digunakan.";
+const INVALID_USERNAME = "Mohon input username anda dengan benar \n\n 1. Username harus mengandung 8 karakter atau lebih !";
+const INVALID_EMAIL = "Mohon input email anda dengan benar \n\n 1. Email harus mengikuti pattern standard email !";
+const INVALID_KTP = "Mohon input KTP anda dengan benar";
+const INVALID_PHONE_NUMBER = "Mohon input nomor telepon anda dengan benar";
+const INVALID_PASSWORD = "Mohon input password anda dengan benar \n\n 1.Password harus mengandung 8 karakter atau lebih ! \n\n 2.Password setidaknya mengandung 1 huruf kapital ! \n\n 3.Password setidaknya mengandung 1 huruf kecil ! \n\n 4.Password setidaknya mengandung 1 angka ! \n\n 5.Password setidaknya mengandung karakter special ! (@$!%*?&)";
+const USER_UNAUTHORIZED = "User tidak terautorisasi";
+const USER_ACCESS_FORBIDDEN = "User tidak ada akses";
+const USER_NOT_FOUND = "User tidak ditemukan";
+const WRONG_PASSWORD_INPUT = "Mohon input password anda dengan benar";
+const USER_NOT_VERIFY = "Mohon verifikasi terlebih dahulu";
+const INVALID_RECOVERY_TOKEN = "Recovery token salah !";
 const UNDEFINED_QUERY_PARAM = "Can't fetch query param value.";
 
 // OTP
 const PLEASE_VERIFY_OTP = "PLEASE_VERIFY_OTP";
-const OTP_EXPIRED = "Your OTP has expired please re-send the OTP";
-const OTP_UNMATCH = "Invalid OTP input";
-const SESSION_TOKEN_NOT_FOUND = "Session token not found or might be expired";
+const OTP_EXPIRED = "OTP anda sudah expired, mohon request ulang OTP !";
+const OTP_UNMATCH = "Input OTP salah !";
+const SESSION_TOKEN_NOT_FOUND = "Session token tidak dapat ditemukan !";
 
 // INTERNAL ERRORS
-const CANT_VALIDATE_RECOVERY_TOKEN = "Can't validate recovery token or the token might have been used. Please request the password recovery email again";
+const CANT_VALIDATE_RECOVERY_TOKEN = "Recovery token tidak dapat tervalidasi, token mungkin sudah pernah digunakan. \n\n Silahkan request email recovery password lagi ya.";
 const INTERNAL_ERROR_CANT_COMMUNICATE = "INTERNAL ERROR: Can't communicate with the other services.";
 
 module.exports = {

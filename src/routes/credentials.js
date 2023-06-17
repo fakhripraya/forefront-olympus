@@ -1,10 +1,9 @@
 var crypto = require('crypto');
 const {
-    validateUserPhoneNumber,
     validateEmail,
     validatePassword,
     validateUsername
-} = require('../utils/formater')
+} = require('../utils/validator')
 const {
     SEND_MAIL,
     SEND_OTP,

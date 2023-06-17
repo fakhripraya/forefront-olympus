@@ -92,7 +92,7 @@ function SequelizeErrorHandling(err, res) {
             ...errMessages,
             possibility: USER_HAS_ALREADY_BEEN_CREATED
         });
-    } else return res.status(500).send(UNIDENTIFIED_ERROR);
+    } else return res.status(400).send(err.toString());
 }
 
 function generateOTP() {

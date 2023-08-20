@@ -104,9 +104,9 @@ function generateGooglePass() {
 }
 
 async function SequelizeRollback(trx, error) {
-    console.log(error);
     console.log("There has been some error when commiting the transaction, rolling back...");
-    //await trx.rollback();
+    console.log(error);
+    await trx.rollback();
 }
 
 module.exports = {

@@ -405,8 +405,7 @@ const InitCredentialRoute = (app) => {
                             { username: req.body.username },
                             { email: req.body.email }
                         ]
-                    },
-                    transaction: trx
+                    }
                 });
 
                 if (!user) {
@@ -416,10 +415,10 @@ const InitCredentialRoute = (app) => {
                         email: req.body.email,
                         hashedPassword: hashedPassword,
                         salt: salt
-                    }, { transaction: trx }).then(async function () {
-                        await trx.commit();
-                        return res.sendStatus(200);
-                    });
+                    }, { transaction: trx });
+
+                    await trx.commit();
+                    return res.sendStatus(200);
                 } else if (req.body.email === user.dataValues.email) return res.status(409).send(EMAIL_HAS_ALREADY_BEEN_USED);
                 else return res.status(409).send(USER_HAS_ALREADY_BEEN_CREATED);
             } catch (error) {

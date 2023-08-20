@@ -1,4 +1,3 @@
-
 // GENERAL
 const USER = "USER";
 const SUCCESS = "SUCCESS";
@@ -20,32 +19,36 @@ const PROD = "PROD";
 // EMAIL TYPE
 const SEND_OTP = "SEND_OTP";
 const SEND_EMAIL_EXISTENCE = "SEND_EMAIL_EXISTENCE";
-const SEND_NEW_PASSWORD_REQUEST = "SEND_NEW_PASSWORD_REQUEST";
+const SEND_NEW_PASSWORD_REQUEST =
+  "SEND_NEW_PASSWORD_REQUEST";
 
 // EMAIL SUBJECT
-const ACCOUNT_SUCCESSFULLY_REGISTERED = "Account Registration - Your account has been sucessfully registered";
-const OTP_EMAIL = "Account OTP Validation - Here is your OTP number";
-const NEW_PASSWORD_REQUEST_EMAIL = "New Password Request - Please click this link to verify its you";
+const ACCOUNT_SUCCESSFULLY_REGISTERED =
+  "Account Registration - Your account has been sucessfully registered";
+const OTP_EMAIL =
+  "Account OTP Validation - Here is your OTP number";
+const NEW_PASSWORD_REQUEST_EMAIL =
+  "New Password Request - Please click this link to verify its you";
 
 // API URLs
 const SEND_MAIL = `v${process.env.APP_MAILER_MAJOR_VERSION}/send`;
 
 module.exports = {
-    DEV,
-    PREPROD,
-    PROD,
-    USER,
-    SUCCESS,
-    POST,
-    GET,
-    POST_SEND_EMAIL,
-    GET_GOOGLE_OAUTH2_TOKEN,
-    GET_GOOGLE_OAUTH2_SCOPE,
-    SEND_OTP,
-    SEND_NEW_PASSWORD_REQUEST,
-    SEND_EMAIL_EXISTENCE,
-    SEND_MAIL,
-    ACCOUNT_SUCCESSFULLY_REGISTERED,
-    OTP_EMAIL,
-    NEW_PASSWORD_REQUEST_EMAIL
-}
+  DEV,
+  PREPROD,
+  PROD,
+  USER,
+  SUCCESS,
+  POST,
+  GET,
+  POST_SEND_EMAIL,
+  GET_GOOGLE_OAUTH2_TOKEN,
+  GET_GOOGLE_OAUTH2_SCOPE,
+  SEND_OTP,
+  SEND_NEW_PASSWORD_REQUEST,
+  SEND_EMAIL_EXISTENCE,
+  SEND_MAIL,
+  ACCOUNT_SUCCESSFULLY_REGISTERED,
+  OTP_EMAIL,
+  NEW_PASSWORD_REQUEST_EMAIL,
+};

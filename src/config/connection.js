@@ -8,20 +8,20 @@ const DB_USERNAME = process.env.APP_DB_USERNAME || "root";
 const DB_PASSWORD = process.env.APP_DB_PASSWORD || "";
 
 const DBSSLConnectionConfiguration = () => {
-    if (DB_HOST.includes("localhost")) return false;
-    else return { "rejectUnauthorized": true };
-}
+  if (DB_HOST.includes("localhost")) return false;
+  else return { rejectUnauthorized: true };
+};
 
 const CORSConfiguration = () => {
-    return ALLOW_LIST
-}
+  return ALLOW_LIST;
+};
 
 module.exports = {
-    DB_HOST,
-    DB_PORT,
-    DB_NAME,
-    DB_USERNAME,
-    DB_PASSWORD,
-    CORSConfiguration,
-    DBSSLConnectionConfiguration,
-}
+  DB_HOST,
+  DB_PORT,
+  DB_NAME,
+  DB_USERNAME,
+  DB_PASSWORD,
+  CORSConfiguration,
+  DBSSLConnectionConfiguration,
+};

@@ -34,7 +34,7 @@ const AppConfig = (app, express) => {
         cookie: {
             sameSite: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD ? 'none' : false, // in order to response to both first-party and cross-site requests
             secure: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD, // it should set automatically to secure if is https.
-            httpOnly: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD,
+            //httpOnly: process.env.APP_STATE === PROD || process.env.APP_STATE === PREPROD,
             maxAge: 3 * 60 * 60 * 1000
         },
         resave: false, // don't save session if unmodified

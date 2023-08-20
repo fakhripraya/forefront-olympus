@@ -1,6 +1,6 @@
 # Olympus
 
-This is the main credential service mainly for Coolie credential purpose
+This is the main credential service
 Note that this service can be used dynamically
 This service is also used for handling user data
 

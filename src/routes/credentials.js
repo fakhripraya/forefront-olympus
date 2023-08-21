@@ -202,8 +202,10 @@ const InitCredentialRoute = (app) => {
       // Renew the token
       const { result, err, status } = renewToken(
         req.body.credentialToken,
-        req.session.refreshTokens
+        req.session.refreshTokens,
+        req.sessionID
       );
+
       if (status !== 200)
         return res.status(status).send(err);
       return res.status(status).json(result);
@@ -234,8 +236,10 @@ const InitCredentialRoute = (app) => {
       // If OTP valid, redirect to renew token
       const { result, err, status } = renewToken(
         req.body.credentialToken,
-        req.session.refreshTokens
+        req.session.refreshTokens,
+        req.sessionID
       );
+
       if (status !== 200)
         return res.status(status).send(err);
       return res.status(status).json(result);
@@ -481,6 +485,7 @@ const InitCredentialRoute = (app) => {
             req.session.refreshTokens.push(refreshToken);
 
             return res.status(200).json({
+              sid: req.sessionID,
               user: userInfo,
               credentialToken: {
                 accessToken: accessToken,

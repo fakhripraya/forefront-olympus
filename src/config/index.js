@@ -51,7 +51,6 @@ const AppConfig = (app, express) => {
           process.env.APP_STATE === PROD ||
           process.env.APP_STATE === PREPROD,
         maxAge: 3 * 60 * 60 * 1000,
-        domain: "cyclic.cloud",
       },
       resave: false, // don't save session if unmodified
       rolling: true, // refresh the session max age on every response

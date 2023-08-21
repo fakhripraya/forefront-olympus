@@ -25,7 +25,11 @@ function generateRefreshToken(user) {
   );
 }
 
-function renewToken(credentialToken, sessionRefreshTokens) {
+function renewToken(
+  credentialToken,
+  sessionRefreshTokens,
+  sessionID
+) {
   // Init result
   var result = { result: null, err: null, status: null };
   let refreshToken = credentialToken.refreshToken;
@@ -75,6 +79,7 @@ function renewToken(credentialToken, sessionRefreshTokens) {
             accessToken: accessToken,
             refreshToken: refreshToken,
           },
+          sid: sessionID,
         },
         err: null,
         status: 200,

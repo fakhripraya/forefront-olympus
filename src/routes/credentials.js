@@ -548,30 +548,29 @@ const InitCredentialRoute = (app) => {
               },
             });
 
-            if (!user) {
-              await MasterUser.create(
-                {
-                  username: req.body.username,
-                  fullName: req.body.username,
-                  email: req.body.email,
-                  hashedPassword: hashedPassword,
-                  salt: salt,
-                },
-                { transaction: trx }
-              );
-
-              await trx.commit();
-              return res.sendStatus(200);
-            } else if (
-              req.body.email === user.dataValues.email
-            )
+            if (req.body.email === user.dataValues.email)
               return res
                 .status(409)
                 .send(EMAIL_HAS_ALREADY_BEEN_USED);
-            else
+            else if (user) {
               return res
                 .status(409)
                 .send(USER_HAS_ALREADY_BEEN_CREATED);
+            }
+
+            await MasterUser.create(
+              {
+                username: req.body.username,
+                fullName: req.body.username,
+                email: req.body.email,
+                hashedPassword: hashedPassword,
+                salt: salt,
+              },
+              { transaction: trx }
+            );
+
+            await trx.commit();
+            return res.sendStatus(200);
           } catch (error) {
             await SequelizeRollback(trx, error);
             SequelizeErrorHandling(error, res);

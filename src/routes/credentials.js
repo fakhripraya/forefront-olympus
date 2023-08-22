@@ -548,7 +548,10 @@ const InitCredentialRoute = (app) => {
               },
             });
 
-            if (req.body.email === user.dataValues.email)
+            if (
+              user &&
+              req.body.email === user.dataValues.email
+            )
               return res
                 .status(409)
                 .send(EMAIL_HAS_ALREADY_BEEN_USED);

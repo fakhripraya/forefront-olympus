@@ -53,6 +53,7 @@ const { GETRequest } = require("../utils/axios/get");
 const { Op } = require("sequelize");
 const { uuid } = require("uuidv4");
 
+// TODO: there is a bug when login and verify otp, sometimes session token not found, idk what cause it but the whole process should track SID for the TODO
 const InitCredentialRoute = (app) => {
   /*POST Method
    * ROUTE: /{version}/auth/pw/forgot

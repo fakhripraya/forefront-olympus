@@ -13,6 +13,7 @@ const {
   GET_GOOGLE_OAUTH2_SCOPE,
   SEND_NEW_PASSWORD_REQUEST,
   NEW_PASSWORD_REQUEST_EMAIL,
+  X_SID,
 } = require("../variables/general");
 const {
   generateAccessToken,
@@ -23,6 +24,7 @@ const {
   SequelizeRollback,
   getGoogleAuthURL,
   generateGooglePass,
+  hashPassword,
 } = require("../utils/functions");
 const {
   MasterUser,
@@ -41,6 +43,7 @@ const {
   USER_UNAUTHORIZED,
   UNDEFINED_QUERY_PARAM,
   INTERNAL_ERROR_CANT_COMMUNICATE,
+  USER_ACCESS_FORBIDDEN,
 } = require("../variables/responseMessage");
 const { POSTRequest } = require("../utils/axios/post");
 const {
@@ -52,6 +55,9 @@ const { db } = require("../config/index");
 const { GETRequest } = require("../utils/axios/get");
 const { Op } = require("sequelize");
 const { uuid } = require("uuidv4");
+const {
+  sequelizeSessionStore,
+} = require("../config/sequelize");
 
 // TODO: there is a bug when login and verify otp, sometimes session token not found, idk what cause it but the whole process should track SID for the TODO
 const InitCredentialRoute = (app) => {
@@ -89,9 +95,9 @@ const InitCredentialRoute = (app) => {
         token: recoveryToken,
       };
 
+      // create new session
       // save the token in the session
-      req.session.recoveryInfo = new Array();
-      req.session.recoveryInfo.push(userInfo);
+      req.session.recoveryInfo = userInfo;
 
       // send email OTP to user
       const result = await POSTRequest({
@@ -115,19 +121,9 @@ const InitCredentialRoute = (app) => {
           .status(result.httpCode)
           .send(result.errContent);
 
-      return res.sendStatus(200);
-    }
-  );
-
-  /*POST Method
-   * ROUTE: /{version}/auth/pw/check
-   * This route check the password token eligibility to validate user right for their password
-   */
-  app.post(
-    `/v${process.env.APP_MAJOR_VERSION}/auth/pw/check`,
-    checkNewPasswordRequestEligibility,
-    (req, res) => {
-      return res.sendStatus(202);
+      res.status(200).json({
+        sid: req.sessionID,
+      });
     }
   );
 
@@ -149,40 +145,39 @@ const InitCredentialRoute = (app) => {
 
       // Generate the salt
       var salt = crypto.randomBytes(16);
+      var hashedPassword;
       // Adding salt before encrypting the password
       // Hash the password with the SHA256 encryption function
-      crypto.pbkdf2(
-        req.body.newPassword,
-        salt,
-        310000,
-        32,
-        "sha256",
-        async function (err, hashedPassword) {
-          if (err) return res.status(400).send(err);
-          const trx = await db.transaction();
-          try {
-            await MasterUser.update(
-              {
-                hashedPassword: hashedPassword,
-                salt: salt,
-              },
-              {
-                where: {
-                  email: req.session.recoveryInfo[0].email,
-                },
-                transaction: trx,
-              }
-            );
+      try {
+        hashedPassword = await hashPassword(
+          req.body.newPassword,
+          salt
+        );
+      } catch (error) {
+        return res.status(500).send(error);
+      }
 
-            await trx.commit();
-            req.session.destroy();
-            return res.sendStatus(200);
-          } catch (error) {
-            await SequelizeRollback(trx, error);
-            SequelizeErrorHandling(error, res);
+      const trx = await db.transaction();
+      try {
+        await MasterUser.update(
+          {
+            hashedPassword: hashedPassword,
+            salt: salt,
+          },
+          {
+            where: {
+              email: req.user.session.recoveryInfo.email,
+            },
+            transaction: trx,
           }
-        }
-      );
+        );
+
+        await trx.commit();
+        return res.sendStatus(200);
+      } catch (error) {
+        await SequelizeRollback(trx, error);
+        SequelizeErrorHandling(error, res);
+      }
     }
   );
 
@@ -193,18 +188,20 @@ const InitCredentialRoute = (app) => {
   app.post(
     `/v${process.env.APP_MAJOR_VERSION}/auth/token`,
     checkCredentialToken,
-    (req, res) => {
+    async (req, res) => {
       // check query param availability
+      // in here if the user dont have cred token in the body, we will send 401 instead of 403
+      // its to mark that user is not authorized yet
       if (!req.body)
         return res.status(400).send(UNIDENTIFIED_ERROR);
       if (!req.body.credentialToken)
         return res.status(401).send(USER_UNAUTHORIZED);
 
       // Renew the token
-      const { result, err, status } = renewToken(
+      const { result, err, status } = await renewToken(
         req.body.credentialToken,
-        req.session.refreshTokens,
-        req.sessionID
+        req.user.session,
+        req.headers[X_SID]
       );
 
       if (status !== 200)
@@ -220,12 +217,14 @@ const InitCredentialRoute = (app) => {
   app.post(
     `/v${process.env.APP_MAJOR_VERSION}/auth/verify/otp`,
     checkCredentialTokenOTP,
-    (req, res) => {
+    async (req, res) => {
       // check query param availability
+      // in here if the user dont have cred token in the body, we will send 403 instead of 401
+      // its to mark that user is forbidden to continue the flow
       if (!req.body)
         return res.status(400).send(UNIDENTIFIED_ERROR);
       if (!req.body.credentialToken)
-        return res.status(401).send(USER_UNAUTHORIZED);
+        return res.status(403).send(USER_ACCESS_FORBIDDEN);
 
       // Check the OTP validation
       if (new Date().getTime() >= req.user.OTPExpiration)
@@ -235,10 +234,10 @@ const InitCredentialRoute = (app) => {
 
       // Renew the token
       // If OTP valid, redirect to renew token
-      const { result, err, status } = renewToken(
+      const { result, err, status } = await renewToken(
         req.body.credentialToken,
-        req.session.refreshTokens,
-        req.sessionID
+        req.user.session,
+        req.headers[X_SID]
       );
 
       if (status !== 200)
@@ -264,241 +263,102 @@ const InitCredentialRoute = (app) => {
       const reqUser = req.body;
 
       // Request find one to the database via sequelize function
-      await MasterUser.findOne({
-        where: { username: reqUser.username },
-      })
-        .then((user) => {
-          if (!user)
-            return res.status(404).send(USER_NOT_FOUND);
-          crypto.pbkdf2(
-            reqUser.password,
-            user.salt,
-            310000,
-            32,
-            "sha256",
-            async function (err, hashedPassword) {
-              if (err) res.status(500).send(err);
-              if (
-                !crypto.timingSafeEqual(
-                  user.hashedPassword,
-                  hashedPassword
-                )
-              )
-                return res
-                  .status(403)
-                  .send(WRONG_PASSWORD_INPUT);
-              req.session.refreshTokens = new Array();
-
-              // put the necessary user info here
-              const userInfo = {
-                userId: user.id,
-                username: user.username,
-                fullName: user.fullName,
-                phoneNumber: user.phoneNumber,
-                email: user.email,
-                OTP: generateOTP().toString(),
-                OTPExpiration:
-                  new Date().getTime() + 1000 * 60 * 3, //Expired in 3 min
-                OTPVerified: false,
-              };
-
-              // send email OTP to user
-              const result = await POSTRequest({
-                endpoint: process.env.APP_MAILER_HOST_PORT,
-                url: SEND_MAIL,
-                data: {
-                  receiver: user.email,
-                  subject: OTP_EMAIL,
-                  mailType: SEND_OTP,
-                  props: userInfo,
-                },
-                logTitle: POST_SEND_EMAIL,
-              });
-
-              if (!result)
-                return res
-                  .status(404)
-                  .send(UNIDENTIFIED_ERROR);
-              if (result.httpCode === 500)
-                return res
-                  .status(500)
-                  .send(INTERNAL_ERROR_CANT_COMMUNICATE);
-              if (result.error)
-                return res
-                  .status(result.httpCode)
-                  .send(result.errContent);
-
-              // token will only save the desired user info
-              const accessToken =
-                generateAccessToken(userInfo);
-              const refreshToken = generateRefreshToken({
-                userId: userInfo.userId,
-                username: userInfo.username,
-                fullName: userInfo.fullName,
-                phoneNumber: userInfo.phoneNumber,
-                email: userInfo.email,
-              });
-
-              req.session.refreshTokens.push(refreshToken);
-              res.status(200).json({
-                credentialToken: {
-                  accessToken: accessToken,
-                  refreshToken: refreshToken,
-                },
-              });
-            }
-          );
-        })
-        .catch((err) => {
-          SequelizeErrorHandling(err, res);
+      // if the user login with email, allow it
+      var hashedPassword;
+      var user;
+      try {
+        user = await MasterUser.findOne({
+          where: {
+            [Op.or]: [
+              { username: reqUser.username },
+              { email: reqUser.username },
+            ],
+          },
         });
-    }
-  );
 
-  /*GET Method
-   * ROUTE: /{version}/auth/google/url
-   * This route authenticates the user by verifying user google account.
-   *
-   * An authentication form will be prompted in the client service, which
-   * The strategy will proccess the data of the user's google account.
-   */
-  app.get(
-    `/v${process.env.APP_MAJOR_VERSION}/auth/google/url`,
-    (req, res) => {
-      return res.send(getGoogleAuthURL());
-    }
-  );
+        if (!user)
+          return res.status(404).send(USER_NOT_FOUND);
+      } catch (error) {
+        SequelizeErrorHandling(error, res);
+      }
 
-  app.post(
-    `/v${process.env.APP_MAJOR_VERSION}/auth/google/callback`,
-    async (req, res) => {
-      if (!req.query)
-        return res.status(404).send(UNDEFINED_QUERY_PARAM);
-      if (!req.query.code)
-        return res.status(404).send(UNDEFINED_QUERY_PARAM);
-      const code = req.query.code;
-      // fetch OAUTH token
-      const token = await POSTRequest({
-        endpoint: "https://oauth2.googleapis.com",
-        url: "/token",
+      try {
+        hashedPassword = await hashPassword(
+          reqUser.password,
+          user.salt
+        );
+        if (
+          !crypto.timingSafeEqual(
+            user.hashedPassword,
+            hashedPassword
+          )
+        )
+          return res.status(403).send(WRONG_PASSWORD_INPUT);
+      } catch (error) {
+        return res.status(500).send(error);
+      }
+
+      // put the necessary user info here
+      const userInfo = {
+        userId: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        phoneNumber: user.phoneNumber,
+        email: user.email,
+        OTP: generateOTP().toString(),
+        OTPExpiration: new Date().getTime() + 1000 * 60 * 3, //Expired in 3 min
+        OTPVerified: false,
+      };
+
+      // send email OTP to user
+      const result = await POSTRequest({
+        endpoint: process.env.APP_MAILER_HOST_PORT,
+        url: SEND_MAIL,
         data: {
-          code,
-          client_id: process.env.APP_GOOGLE_CLIENT_ID,
-          client_secret:
-            process.env.APP_GOOGLE_CLIENT_SECRET,
-          // redirect_uri: `${process.env.APP_GOOGLE_CLIENT_AUTHORIZED_CALLBACK_URI}/v${process.env.APP_MAJOR_VERSION}/auth/google/callback`,
-          redirect_uri: `${process.env.APP_GOOGLE_CLIENT_AUTHORIZED_CALLBACK_URI}`,
-          grant_type: "authorization_code",
+          receiver: user.email,
+          subject: OTP_EMAIL,
+          mailType: SEND_OTP,
+          props: userInfo,
         },
-        logTitle: GET_GOOGLE_OAUTH2_TOKEN,
+        logTitle: POST_SEND_EMAIL,
       });
 
-      if (!token)
+      if (!result)
         return res.status(404).send(UNIDENTIFIED_ERROR);
-      if (token.httpCode === 500)
-        return res.sendStatus(500);
-      if (token.error)
+      if (result.httpCode === 500)
         return res
-          .status(token.httpCode)
-          .send(token.errContent);
-
-      // Initialize session
-      req.session.refreshTokens = new Array();
-
-      // get OAUTH token
-      const googleUser = await GETRequest({
-        endpoint: "https://www.googleapis.com",
-        url: `/oauth2/v1/userinfo?alt=json&access_token=${token.response.access_token}`,
-        headers: {
-          Authorization: `Bearer ${token.response.id_token}`,
-        },
-        logTitle: GET_GOOGLE_OAUTH2_SCOPE,
-      });
-
-      if (!googleUser)
-        return res.status(404).send(UNIDENTIFIED_ERROR);
-      if (googleUser.httpCode === 500)
-        return res.sendStatus(500);
-      if (googleUser.error)
+          .status(500)
+          .send(INTERNAL_ERROR_CANT_COMMUNICATE);
+      if (result.error)
         return res
-          .status(googleUser.httpCode)
-          .send(googleUser.errContent);
+          .status(result.httpCode)
+          .send(result.errContent);
 
-      // Generate the salt
-      var salt = crypto.randomBytes(16);
+      try {
+        // token will only save the desired user info
+        const accessToken = generateAccessToken(userInfo);
+        const refreshToken = generateRefreshToken({
+          userId: userInfo.userId,
+          username: userInfo.username,
+          fullName: userInfo.fullName,
+          phoneNumber: userInfo.phoneNumber,
+          email: userInfo.email,
+        });
 
-      // Adding salt before encrypting the password
-      // Hash the password with the SHA256 encryption function
-      crypto.pbkdf2(
-        generateGooglePass(),
-        salt,
-        310000,
-        32,
-        "sha256",
-        async function (err, hashedPassword) {
-          if (err) return res.status(400).send(err);
-          const trx = await db.transaction();
-          try {
-            const user = await MasterUser.findOne({
-              where: {
-                [Op.or]: [
-                  { googleId: googleUser.response.id },
-                  { email: googleUser.response.email },
-                ],
-              },
-              transaction: trx,
-            });
-
-            var newUser = null;
-            if (!user) {
-              newUser = await MasterUser.create(
-                {
-                  username: googleUser.response.email,
-                  fullName: googleUser.response.email,
-                  googleId: googleUser.response.id,
-                  email: googleUser.response.email,
-                  profilePictureURI:
-                    googleUser.response.picture,
-                  hashedPassword: hashedPassword,
-                  salt: salt,
-                },
-                { transaction: trx }
-              );
-
-              await trx.commit();
-            } else newUser = user;
-
-            // put the necessary user info here
-            const userInfo = {
-              userId: newUser.id,
-              username: newUser.username,
-              fullName: newUser.fullName,
-              phoneNumber: newUser.phoneNumber,
-              email: newUser.email,
-              OTPVerified: true,
-            };
-
-            // token will only save the desired user info
-            const accessToken =
-              generateAccessToken(userInfo);
-            const refreshToken =
-              generateRefreshToken(userInfo);
-            req.session.refreshTokens.push(refreshToken);
-
-            return res.status(200).json({
-              sid: req.sessionID,
-              user: userInfo,
-              credentialToken: {
-                accessToken: accessToken,
-                refreshToken: refreshToken,
-              },
-            });
-          } catch (error) {
-            await SequelizeRollback(trx, error);
-            SequelizeErrorHandling(error, res);
-          }
-        }
-      );
+        // create new session
+        // assign the newly generated refresh token
+        // pass the session ID to the client side
+        req.session.refreshToken = refreshToken;
+        return res.status(200).json({
+          sid: req.sessionID,
+          credentialToken: {
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          },
+        });
+      } catch (error) {
+        return res.status(500).send(error);
+      }
     }
   );
 
@@ -527,60 +387,213 @@ const InitCredentialRoute = (app) => {
 
       // Generate the salt
       var salt = crypto.randomBytes(16);
-
+      var hashedPassword;
       // Adding salt before encrypting the password
       // Hash the password with the SHA256 encryption function
-      crypto.pbkdf2(
-        req.body.password,
-        salt,
-        310000,
-        32,
-        "sha256",
-        async function (err, hashedPassword) {
-          if (err) return res.status(400).send(err);
-          const trx = await db.transaction();
-          try {
-            const user = await MasterUser.findOne({
-              where: {
-                [Op.or]: [
-                  { username: req.body.username },
-                  { email: req.body.email },
-                ],
-              },
-            });
+      try {
+        hashedPassword = await hashPassword(
+          req.body.password,
+          salt
+        );
+      } catch (error) {
+        return res.status(500).send(error);
+      }
 
-            if (
-              user &&
-              req.body.email === user.dataValues.email
-            )
-              return res
-                .status(409)
-                .send(EMAIL_HAS_ALREADY_BEEN_USED);
-            else if (user) {
-              return res
-                .status(409)
-                .send(USER_HAS_ALREADY_BEEN_CREATED);
-            }
+      const trx = await db.transaction();
+      try {
+        const user = await MasterUser.findOne({
+          where: {
+            [Op.or]: [
+              { username: req.body.username },
+              { email: req.body.email },
+            ],
+          },
+        });
 
-            await MasterUser.create(
-              {
-                username: req.body.username,
-                fullName: req.body.username,
-                email: req.body.email,
-                hashedPassword: hashedPassword,
-                salt: salt,
-              },
-              { transaction: trx }
-            );
-
-            await trx.commit();
-            return res.sendStatus(200);
-          } catch (error) {
-            await SequelizeRollback(trx, error);
-            SequelizeErrorHandling(error, res);
-          }
+        if (
+          user &&
+          req.body.email === user.dataValues.email
+        )
+          return res
+            .status(409)
+            .send(EMAIL_HAS_ALREADY_BEEN_USED);
+        else if (
+          user &&
+          req.body.username === user.dataValues.username
+        ) {
+          return res
+            .status(409)
+            .send(USER_HAS_ALREADY_BEEN_CREATED);
         }
-      );
+
+        await MasterUser.create(
+          {
+            username: req.body.username,
+            fullName: req.body.username,
+            email: req.body.email,
+            hashedPassword: hashedPassword,
+            salt: salt,
+          },
+          { transaction: trx }
+        );
+
+        await trx.commit();
+        return res.sendStatus(200);
+      } catch (error) {
+        await SequelizeRollback(trx, error);
+        SequelizeErrorHandling(error, res);
+      }
+    }
+  );
+
+  /*GET Method
+   * ROUTE: /{version}/auth/google/url
+   * This route authenticates the user by verifying user google account.
+   *
+   * An authentication form will be prompted in the client service, called consent screen
+   * the user need to submit the google credential in the client after that the google will process the submission
+   * and will invoke the callback route in the server
+   */
+  app.get(
+    `/v${process.env.APP_MAJOR_VERSION}/auth/google/url`,
+    (req, res) => {
+      return res.send(getGoogleAuthURL());
+    }
+  );
+
+  /*POST Method
+   * ROUTE: /{version}/auth/google/callback
+   * This route authenticates the user by verifying user google account.
+   *
+   * This callback route will be invoke after user credential is submitted from the client side
+   * in this process server will save the user session in the DB and token will be passed to the browser cookie in the client
+   */
+  app.post(
+    `/v${process.env.APP_MAJOR_VERSION}/auth/google/callback`,
+    async (req, res) => {
+      if (!req.query)
+        return res.status(404).send(UNDEFINED_QUERY_PARAM);
+      if (!req.query.code)
+        return res.status(404).send(UNDEFINED_QUERY_PARAM);
+      const code = req.query.code;
+      // fetch OAUTH token
+      const token = await POSTRequest({
+        endpoint: "https://oauth2.googleapis.com",
+        url: "/token",
+        data: {
+          code,
+          client_id: process.env.APP_GOOGLE_CLIENT_ID,
+          client_secret:
+            process.env.APP_GOOGLE_CLIENT_SECRET,
+          redirect_uri: `${process.env.APP_GOOGLE_CLIENT_AUTHORIZED_CALLBACK_URI}`,
+          grant_type: "authorization_code",
+        },
+        logTitle: GET_GOOGLE_OAUTH2_TOKEN,
+      });
+
+      if (!token)
+        return res.status(404).send(UNIDENTIFIED_ERROR);
+      if (token.httpCode === 500)
+        return res.sendStatus(500);
+      if (token.error)
+        return res
+          .status(token.httpCode)
+          .send(token.errContent);
+
+      // get OAUTH token
+      const googleUser = await GETRequest({
+        endpoint: "https://www.googleapis.com",
+        url: `/oauth2/v1/userinfo?alt=json&access_token=${token.response.access_token}`,
+        headers: {
+          Authorization: `Bearer ${token.response.id_token}`,
+        },
+        logTitle: GET_GOOGLE_OAUTH2_SCOPE,
+      });
+
+      if (!googleUser)
+        return res.status(404).send(UNIDENTIFIED_ERROR);
+      if (googleUser.httpCode === 500)
+        return res.sendStatus(500);
+      if (googleUser.error)
+        return res
+          .status(googleUser.httpCode)
+          .send(googleUser.errContent);
+
+      // Generate the salt
+      var salt = crypto.randomBytes(16);
+      var hashedPassword;
+      // Adding salt before encrypting the password
+      // Hash the password with the SHA256 encryption function
+      try {
+        hashedPassword = await hashPassword(
+          generateGooglePass(),
+          salt
+        );
+      } catch (error) {
+        return res.status(500).send(error);
+      }
+
+      var newUser = null;
+      const trx = await db.transaction();
+      try {
+        const user = await MasterUser.findOne({
+          where: {
+            [Op.or]: [
+              { googleId: googleUser.response.id },
+              { email: googleUser.response.email },
+            ],
+          },
+          transaction: trx,
+        });
+
+        if (!user) {
+          newUser = await MasterUser.create(
+            {
+              username: googleUser.response.email,
+              fullName: googleUser.response.email,
+              googleId: googleUser.response.id,
+              email: googleUser.response.email,
+              profilePictureURI:
+                googleUser.response.picture,
+              hashedPassword: hashedPassword,
+              salt: salt,
+            },
+            { transaction: trx }
+          );
+
+          await trx.commit();
+        } else newUser = user;
+      } catch (error) {
+        await SequelizeRollback(trx, error);
+        SequelizeErrorHandling(error, res);
+      }
+
+      try {
+        // put the necessary user info here
+        const userInfo = {
+          userId: newUser.id,
+          username: newUser.username,
+          fullName: newUser.fullName,
+          phoneNumber: newUser.phoneNumber,
+          email: newUser.email,
+          OTPVerified: true,
+        };
+
+        // token will only save the desired user info
+        const accessToken = generateAccessToken(userInfo);
+        const refreshToken = generateRefreshToken(userInfo);
+        req.session.refreshToken = refreshToken;
+        return res.status(200).json({
+          sid: req.sessionID,
+          user: userInfo,
+          credentialToken: {
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          },
+        });
+      } catch (error) {
+        return res.status(500).send(error);
+      }
     }
   );
 
@@ -591,28 +604,15 @@ const InitCredentialRoute = (app) => {
    */
   app.post(
     `/v${process.env.APP_MAJOR_VERSION}/auth/logout`,
-    (req, res) => {
-      // check query param availability
-      if (!req.body)
-        return res.status(400).send(UNIDENTIFIED_ERROR);
-      if (!req.session) return res.sendStatus(200);
-      if (!req.session.refreshTokens)
-        return res.sendStatus(200);
+    async (req, res) => {
+      if (!req.headers[X_SID]) return res.status(200);
 
-      // filter session token and destroy
-      const refreshTokens =
-        req.session.refreshTokens.filter(
-          (token) =>
-            token === req.body.credentialToken.refreshToken
-        );
-      if (
-        !refreshTokens ||
-        Object.keys(refreshTokens).length === 0
-      )
-        return res.sendStatus(403);
-      req.session.destroy();
-
-      return res.sendStatus(200);
+      await sequelizeSessionStore.destroy(
+        req.headers[X_SID],
+        () => {
+          return res.sendStatus(200);
+        }
+      );
     }
   );
 };

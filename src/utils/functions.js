@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const querystring = require("querystring");
+const crypto = require("crypto");
 const {
   SEQUELIZE_DATABASE_ERROR,
   SEQUELIZE_VALIDATION_ERROR,
@@ -8,8 +9,11 @@ const {
 const {
   USER_HAS_ALREADY_BEEN_CREATED,
   SESSION_TOKEN_NOT_FOUND,
-  UNIDENTIFIED_ERROR,
+  USER_ACCESS_FORBIDDEN,
 } = require("../variables/responseMessage");
+const {
+  sequelizeSessionStore,
+} = require("../config/sequelize");
 
 function generateAccessToken(user) {
   return jwt.sign(
@@ -25,23 +29,46 @@ function generateRefreshToken(user) {
   );
 }
 
-function renewToken(
+function hashPassword(password, salt) {
+  return new Promise((resolve, reject) => {
+    const iterations = 310000;
+    const keylen = 32;
+    const digest = "sha256";
+
+    crypto.pbkdf2(
+      password,
+      salt,
+      iterations,
+      keylen,
+      digest,
+      (err, key) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(key);
+        }
+      }
+    );
+  });
+}
+
+async function renewToken(
   credentialToken,
-  sessionRefreshTokens,
-  sessionID
+  userSession,
+  userSessionID
 ) {
-  // Init result
+  // here we will take the refresh token from the credential token object
   var result = { result: null, err: null, status: null };
   let refreshToken = credentialToken.refreshToken;
 
   // Check the session token
-  if (!sessionRefreshTokens)
+  if (!userSession)
     return (result = {
       result: null,
-      err: SESSION_TOKEN_NOT_FOUND,
-      status: 401,
+      err: USER_ACCESS_FORBIDDEN,
+      status: 403,
     });
-  if (!sessionRefreshTokens.includes(refreshToken))
+  if (userSession.refreshToken !== refreshToken)
     return (result = {
       result: null,
       err: SESSION_TOKEN_NOT_FOUND,
@@ -49,44 +76,59 @@ function renewToken(
     });
 
   // Verify the JWT token
-  jwt.verify(
-    refreshToken,
-    process.env.APP_REFRESH_TOKEN_SECRET,
-    (err, user) => {
-      if (err)
-        return (result = {
-          result: null,
-          err: err,
-          status: 500,
-        });
-      // create renewed user
-      const renewedUser = {
-        userId: user.userId,
-        username: user.username,
-        fullName: user.fullName,
-        phoneNumber: user.phoneNumber,
-        email: user.email,
-        OTPVerified: true,
-      };
+  try {
+    const user = jwt.verify(
+      refreshToken,
+      process.env.APP_REFRESH_TOKEN_SECRET
+    );
 
-      // generate new token
-      const accessToken = generateAccessToken(renewedUser);
-      refreshToken = generateRefreshToken(renewedUser);
-      return (result = {
-        result: {
-          user: renewedUser,
-          credentialToken: {
-            accessToken: accessToken,
-            refreshToken: refreshToken,
+    // create renewed user
+    const renewedUser = {
+      userId: user.userId,
+      username: user.username,
+      fullName: user.fullName,
+      phoneNumber: user.phoneNumber,
+      email: user.email,
+      OTPVerified: true,
+    };
+
+    // generate new token
+    const accessToken = generateAccessToken(renewedUser);
+    refreshToken = generateRefreshToken(renewedUser);
+
+    // assign the new token in the session
+    const response = await sequelizeSessionStore.set(
+      userSessionID,
+      {
+        ...userSession,
+        refreshToken: refreshToken,
+      },
+      (err) => {
+        if (err) throw new Error(err.toString());
+        return (result = {
+          result: {
+            user: renewedUser,
+            credentialToken: {
+              accessToken: accessToken,
+              refreshToken: refreshToken,
+            },
+            sid: userSessionID,
           },
-          sid: sessionID,
-        },
-        err: null,
-        status: 200,
+          err: null,
+          status: 200,
+        });
+      }
+    );
+
+    return response;
+  } catch (err) {
+    if (err)
+      return (result = {
+        result: null,
+        err: err,
+        status: 500,
       });
-    }
-  );
-  return result;
+  }
 }
 
 function getGoogleAuthURL() {
@@ -158,6 +200,7 @@ module.exports = {
   generateGooglePass,
   generateAccessToken,
   renewToken,
+  hashPassword,
   generateRefreshToken,
   SequelizeErrorHandling,
   SequelizeRollback,

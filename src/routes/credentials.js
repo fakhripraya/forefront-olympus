@@ -59,14 +59,11 @@ const {
   sequelizeSessionStore,
 } = require("../config/sequelize");
 
-// TODO: there is a bug when login and verify otp, sometimes session token not found, idk what cause it but the whole process should track SID for the TODO
 const InitCredentialRoute = (app) => {
   /*POST Method
    * ROUTE: /{version}/auth/pw/forgot
    * This route submit the email of the users that forgot their password
    */
-  // TODO: fix error: there is an error with .then(async ()=>....)
-  // i think its because of the async function arent handling with localhost speed
   app.post(
     `/v${process.env.APP_MAJOR_VERSION}/auth/pw/forgot`,
     async (req, res) => {

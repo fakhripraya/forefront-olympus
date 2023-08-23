@@ -540,7 +540,6 @@ const InitCredentialRoute = (app) => {
               { email: googleUser.response.email },
             ],
           },
-          transaction: trx,
         });
 
         if (!user) {

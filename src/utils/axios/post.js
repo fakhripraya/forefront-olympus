@@ -20,6 +20,7 @@ const POSTRequest = async (config) => {
 
   await Axios(config.endpoint)({
     method: POST,
+    headers: config.headers,
     url: config.url,
     data: config.data,
     cancelToken: cancelSource.token,

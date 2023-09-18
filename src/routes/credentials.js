@@ -165,6 +165,7 @@ const InitCredentialRoute = (app) => {
             where: {
               email: req.user.session.recoveryInfo.email,
             },
+            lock: true,
             transaction: trx,
           }
         );
@@ -431,7 +432,7 @@ const InitCredentialRoute = (app) => {
             hashedPassword: hashedPassword,
             salt: salt,
           },
-          { transaction: trx }
+          { lock: true, transaction: trx }
         );
 
         await trx.commit();
@@ -554,7 +555,7 @@ const InitCredentialRoute = (app) => {
               hashedPassword: hashedPassword,
               salt: salt,
             },
-            { transaction: trx }
+            { lock: true, transaction: trx }
           );
 
           await trx.commit();

@@ -13,7 +13,6 @@ const InitModels = async () => {
       console.log(err);
     })
     .finally(() => {
-      db.close();
       console.log("Model initialization completed");
     });
 };

@@ -6,14 +6,10 @@ const {
 const { InitUserRoute } = require("./src/routes/user");
 const { defaultRoute } = require("./src/routes/default");
 const { AppConfig } = require("./src/config");
-const { InitModels } = require("./src/models");
 var app = express();
 
 // Init App configurations
 app = AppConfig(app, express);
-
-// Init DB Models
-InitModels();
 
 // Init Routes
 defaultRoute(app);

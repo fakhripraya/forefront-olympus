@@ -18,17 +18,15 @@ const {
 const {
   generateAccessToken,
   generateRefreshToken,
-  SequelizeErrorHandling,
   generateOTP,
   renewToken,
-  SequelizeRollback,
   getGoogleAuthURL,
   generateGooglePass,
   hashPassword,
 } = require("../utils/functions");
 const {
   MasterUser,
-} = require("../models/user/master_user");
+} = require("forefront-polus/src/models/user/master_user");
 const {
   WRONG_PASSWORD_INPUT,
   USER_NOT_FOUND,
@@ -55,9 +53,11 @@ const { db } = require("../config/index");
 const { GETRequest } = require("../utils/axios/get");
 const { Op } = require("sequelize");
 const { uuid } = require("uuidv4");
+const { sessionStore } = require("../config/index");
 const {
-  sequelizeSessionStore,
-} = require("../config/sequelize");
+  SequelizeErrorHandling,
+  SequelizeRollback,
+} = require("forefront-polus/src/utils/functions");
 
 const InitCredentialRoute = (app) => {
   /*POST Method
@@ -604,12 +604,9 @@ const InitCredentialRoute = (app) => {
     async (req, res) => {
       if (!req.headers[X_SID]) return res.status(200);
 
-      await sequelizeSessionStore.destroy(
-        req.headers[X_SID],
-        () => {
-          return res.sendStatus(200);
-        }
-      );
+      await sessionStore.destroy(req.headers[X_SID], () => {
+        return res.sendStatus(200);
+      });
     }
   );
 };

@@ -2,18 +2,12 @@ const jwt = require("jsonwebtoken");
 const querystring = require("querystring");
 const crypto = require("crypto");
 const {
-  SEQUELIZE_DATABASE_ERROR,
-  SEQUELIZE_VALIDATION_ERROR,
-  SEQUELIZE_UNIQUE_CONSTRAINT_ERROR,
-} = require("../variables/dbError");
-const {
-  USER_HAS_ALREADY_BEEN_CREATED,
   SESSION_TOKEN_NOT_FOUND,
   USER_ACCESS_FORBIDDEN,
 } = require("../variables/responseMessage");
 const {
-  sequelizeSessionStore,
-} = require("../config/sequelize");
+  sessionStore,
+} = require("forefront-polus/src/config");
 
 function generateAccessToken(user) {
   return jwt.sign(
@@ -97,7 +91,7 @@ async function renewToken(
     refreshToken = generateRefreshToken(renewedUser);
 
     // assign the new token in the session
-    const response = await sequelizeSessionStore.set(
+    const response = await sessionStore.set(
       userSessionID,
       {
         ...userSession,
@@ -150,49 +144,12 @@ function getGoogleAuthURL() {
   return `${rootUrl}?${querystring.stringify(options)}`;
 }
 
-function SequelizeErrorHandling(err, res) {
-  var errMessages = [];
-  // if the DB error is database error
-  if (err.name === SEQUELIZE_DATABASE_ERROR)
-    return res.status(500).send({
-      code: err.parent.code,
-      parentMessage: err.parent.sqlMessage,
-      original: err.original.code,
-      originalMessage: err.original.sqlMessage,
-    });
-  // if the DB error is the user input error
-  if (err.name === SEQUELIZE_VALIDATION_ERROR) {
-    err.errors.forEach((err) =>
-      errMessages.push(err.message)
-    );
-    return res.status(400).send(errMessages);
-  }
-  // if the DB error is the unique constraint error
-  if (err.name === SEQUELIZE_UNIQUE_CONSTRAINT_ERROR) {
-    err.errors.forEach((err) =>
-      errMessages.push(err.message)
-    );
-    return res.status(400).send({
-      ...errMessages,
-      possibility: USER_HAS_ALREADY_BEEN_CREATED,
-    });
-  } else return res.status(400).send(err.toString());
-}
-
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000);
 }
 
 function generateGooglePass() {
   return Math.random().toString(36).slice(-8);
-}
-
-async function SequelizeRollback(trx, error) {
-  console.log(
-    "There has been some error when commiting the transaction, rolling back..."
-  );
-  console.log(error);
-  await trx.rollback();
 }
 
 module.exports = {
@@ -202,7 +159,5 @@ module.exports = {
   renewToken,
   hashPassword,
   generateRefreshToken,
-  SequelizeErrorHandling,
-  SequelizeRollback,
   getGoogleAuthURL,
 };

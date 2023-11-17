@@ -7,8 +7,8 @@ const {
   USER_UNAUTHORIZED,
 } = require("../variables/responseMessage");
 const {
-  sequelizeSessionStore,
-} = require("../config/sequelize");
+  sessionStore,
+} = require("forefront-polus/src/config");
 const { X_SID } = require("../variables/general");
 
 // Check the new password request eligibility
@@ -20,7 +20,7 @@ async function checkNewPasswordRequestEligibility(
   if (!req.headers[X_SID])
     return res.status(401).send(SESSION_TOKEN_NOT_FOUND);
 
-  await sequelizeSessionStore.get(
+  await sessionStore.get(
     req.headers[X_SID],
     (err, result) => {
       if (err)
@@ -51,7 +51,7 @@ async function checkCredentialTokenOTP(req, res, next) {
   if (!req.headers[X_SID])
     return res.status(401).send(SESSION_TOKEN_NOT_FOUND);
 
-  await sequelizeSessionStore.get(
+  await sessionStore.get(
     req.headers[X_SID],
     (err, result) => {
       if (err)
@@ -87,7 +87,7 @@ async function checkCredentialToken(req, res, next) {
   if (!req.headers[X_SID])
     return res.status(401).send(SESSION_TOKEN_NOT_FOUND);
 
-  await sequelizeSessionStore.get(
+  await sessionStore.get(
     req.headers[X_SID],
     (err, result) => {
       if (err)

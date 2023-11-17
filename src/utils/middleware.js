@@ -6,9 +6,7 @@ const {
   SESSION_TOKEN_NOT_FOUND,
   USER_UNAUTHORIZED,
 } = require("../variables/responseMessage");
-const {
-  sessionStore,
-} = require("forefront-polus/src/config");
+const { sessionStore } = require("../config/index");
 const { X_SID } = require("../variables/general");
 
 // Check the new password request eligibility

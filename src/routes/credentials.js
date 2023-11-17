@@ -24,9 +24,8 @@ const {
   generateGooglePass,
   hashPassword,
 } = require("../utils/functions");
-const {
-  MasterUser,
-} = require("forefront-polus/src/models/user/master_user");
+const { MasterUser } =
+  require("forefront-polus/src/models/index")();
 const {
   WRONG_PASSWORD_INPUT,
   USER_NOT_FOUND,
@@ -49,10 +48,10 @@ const {
   checkCredentialToken,
   checkNewPasswordRequestEligibility,
 } = require("../utils/middleware");
-const { db } = require("../config/index");
 const { GETRequest } = require("../utils/axios/get");
 const { Op } = require("sequelize");
 const { uuid } = require("uuidv4");
+const { db } = require("../config/index");
 const { sessionStore } = require("../config/index");
 const {
   SequelizeErrorHandling,

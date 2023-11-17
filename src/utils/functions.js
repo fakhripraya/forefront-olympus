@@ -5,9 +5,7 @@ const {
   SESSION_TOKEN_NOT_FOUND,
   USER_ACCESS_FORBIDDEN,
 } = require("../variables/responseMessage");
-const {
-  sessionStore,
-} = require("forefront-polus/src/config");
+const { sessionStore } = require("../config/index");
 
 function generateAccessToken(user) {
   return jwt.sign(

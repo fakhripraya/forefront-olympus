@@ -26,22 +26,23 @@ async function checkNewPasswordRequestEligibility(
           .status(401)
           .send(SESSION_TOKEN_NOT_FOUND);
 
-      if (!result.recoveryInfo)
+      if (!result || !result.recoveryInfo)
         return res
           .status(403)
           .send(CANT_VALIDATE_RECOVERY_TOKEN);
 
       if (
-        result.recoveryInfo.token !== req.body.recoveryToken
+        result?.recoveryInfo?.token !==
+        req.body.recoveryToken
       )
         return res.status(403).send(INVALID_RECOVERY_TOKEN);
 
       req.user = {
         session: result,
       };
-      next();
     }
   );
+  next();
 }
 
 // Check the credential token middleware for OTP

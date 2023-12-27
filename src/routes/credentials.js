@@ -132,6 +132,7 @@ const InitCredentialRoute = (app) => {
     checkNewPasswordRequestEligibility,
     async (req, res) => {
       // check query param availability
+      if (res.headersSent) return;
       if (!req.body)
         return res.status(400).send(UNIDENTIFIED_ERROR);
       if (!validatePassword(req.body.newPassword))
@@ -162,13 +163,19 @@ const InitCredentialRoute = (app) => {
           },
           {
             where: {
-              email: req.user.session.recoveryInfo.email,
+              email: req.user?.session?.recoveryInfo.email,
             },
             lock: true,
             transaction: trx,
           }
         );
 
+        await sessionStore.destroy(
+          req.headers[X_SID],
+          (err) => {
+            if (err) return res.status(403).send(err);
+          }
+        );
         await trx.commit();
         return res.sendStatus(200);
       } catch (error) {

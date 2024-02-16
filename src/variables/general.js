@@ -34,7 +34,7 @@ const NEW_PASSWORD_REQUEST_EMAIL =
   "New Password Request - Please click this link to verify its you";
 
 // API URLs
-const SEND_MAIL = `v${process.env.APP_MAILER_MAJOR_VERSION}/send`;
+const SEND_MAIL = `v1/send`;
 
 module.exports = {
   DEV,

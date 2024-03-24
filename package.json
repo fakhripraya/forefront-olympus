@@ -8,7 +8,7 @@
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "express-session-sequelize": "^2.3.0",
-    "forefront-polus": "file:tarball/forefront-polus-1.1.0.tgz",
+    "forefront-polus": "file:tarball/forefront-polus-1.2.1.tgz",
     "jsonwebtoken": "^9.0.0",
     "morgan": "^1.10.0",
     "mysql2": "^2.3.3",

@@ -65,8 +65,6 @@ const InitCredentialRoute = (app) => {
    */
   app.post(`/v1/auth/pw/forgot`, async (req, res) => {
     // check query param availability
-    if (!req.body)
-      return res.status(400).send(UNIDENTIFIED_ERROR);
     if (!req.body.email)
       return res.status(400).send(INVALID_EMAIL);
 

@@ -6,10 +6,10 @@ const {
 const { InitUserRoute } = require("./src/routes/user");
 const { defaultRoute } = require("./src/routes/default");
 const { AppConfig } = require("./src/config");
-var app = express();
+const expressApp = express();
 
 // Init App configurations
-app = AppConfig(app, express);
+const { server, app } = AppConfig(expressApp, express);
 
 // Init Routes
 defaultRoute(app);
@@ -17,6 +17,6 @@ InitCredentialRoute(app);
 InitUserRoute(app);
 
 const port = process.env.PORT || 8001;
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is up and running on ${port} ...`);
 });

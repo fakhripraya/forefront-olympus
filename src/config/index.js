@@ -3,6 +3,9 @@ const { CORSConfiguration } = require("./connection");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
 const session = require("express-session");
+const fs = require("fs");
+const http = require("http");
+const https = require("httpolyglot");
 const { PROD, PREPROD } = require("../variables/general");
 const {
   db,
@@ -10,17 +13,22 @@ const {
 } = require("forefront-polus/src/config/index");
 
 const AppConfig = (app, express) => {
+  // env
+  const APP_STATE = process.env.APP_STATE;
+  const APP_ENABLE_LOCAL_HTTPS =
+    process.env.APP_ENABLE_LOCAL_HTTPS;
+  const APP_CERT_PATH = process.env.APP_CERT_PATH;
+  const APP_KEY_PATH = process.env.APP_KEY_PATH;
+
   // Express app config
   app.locals.pluralize = require("pluralize");
   app.use(logger("dev"));
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
-  if (
-    process.env.APP_STATE === PROD ||
-    process.env.APP_STATE === PREPROD
-  )
+  if (APP_STATE === PROD || APP_STATE === PREPROD)
     app.set("trust proxy", 1);
+
   // CORS establishment
   app.use(
     cors({
@@ -40,16 +48,12 @@ const AppConfig = (app, express) => {
       name: "FOREFRONT-SESSION",
       cookie: {
         sameSite:
-          process.env.APP_STATE === PROD ||
-          process.env.APP_STATE === PREPROD
+          APP_STATE === PROD || APP_STATE === PREPROD
             ? "none"
             : false, // in order to response to both first-party and cross-site requests
-        secure:
-          process.env.APP_STATE === PROD ||
-          process.env.APP_STATE === PREPROD, // it should set automatically to secure if is https.
+        secure: APP_STATE === PROD || APP_STATE === PREPROD, // it should set automatically to secure if is https.
         httpOnly:
-          process.env.APP_STATE === PROD ||
-          process.env.APP_STATE === PREPROD,
+          APP_STATE === PROD || APP_STATE === PREPROD,
         maxAge: 3 * 60 * 60 * 1000,
       },
       proxy: true, // if you do SSL outside of node.
@@ -59,17 +63,19 @@ const AppConfig = (app, express) => {
       store: sessionStore,
     })
   );
-  // const csrfProtection = csrf({
-  //     cookie: false,
-  // });
 
-  // Global Middleware
-  app.use((err, req, res, next) => {
-    res.status(500).send("Something went wrong!");
-  });
-  // app.use(csrfProtection);
-
-  return app;
+  // Initialize HTTP/HTTPS server
+  // SSL cert for HTTPS access
+  // (this is for test purposes and will not be used on production app)
+  let server = http.createServer(app);
+  if (APP_ENABLE_LOCAL_HTTPS) {
+    const options = {
+      key: fs.readFileSync(APP_KEY_PATH, "utf-8"),
+      cert: fs.readFileSync(APP_CERT_PATH, "utf-8"),
+    };
+    server = https.createServer(options, app);
+  }
+  return { server, app };
 };
 
 module.exports = {

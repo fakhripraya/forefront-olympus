@@ -454,11 +454,11 @@ const InitCredentialRoute = (app) => {
    * in this process server will save the user session in the DB and token will be passed to the browser cookie in the client
    */
   app.post(`/v1/auth/google/callback`, async (req, res) => {
-    if (!req.query)
-      return res.status(404).send(UNDEFINED_QUERY_PARAM);
+    // query validation
     if (!req.query.code)
       return res.status(404).send(UNDEFINED_QUERY_PARAM);
     const code = req.query.code;
+
     // fetch OAUTH token
     const token = await POSTRequest({
       endpoint: "https://oauth2.googleapis.com",
@@ -561,6 +561,11 @@ const InitCredentialRoute = (app) => {
       // token will only save the desired user info
       const accessToken = generateAccessToken(userInfo);
       const refreshToken = generateRefreshToken(userInfo);
+
+      // this req.session will set the new session and generate the SID
+      // the SID can be used to refer to the user current session later
+      // the session is saved in the db session store
+      // TODO: create our own session store API
       req.session.refreshToken = refreshToken;
       return res.status(200).json({
         sid: req.sessionID,

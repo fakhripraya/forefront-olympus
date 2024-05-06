@@ -12,6 +12,9 @@ const {
   sessionStore,
 } = require("forefront-polus/src/config/index");
 
+// FIXME: There is request leak for the session store flow
+// remove all the session store from all service except olympus
+// to prevent all service session check by simultaneously
 const AppConfig = (app, express) => {
   // env
   const APP_STATE = process.env.APP_STATE;
@@ -54,7 +57,7 @@ const AppConfig = (app, express) => {
         secure: APP_STATE === PROD || APP_STATE === PREPROD, // it should set automatically to secure if is https.
         httpOnly:
           APP_STATE === PROD || APP_STATE === PREPROD,
-        maxAge: 3 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000,
       },
       proxy: true, // if you do SSL outside of node.
       resave: false, // don't save session if unmodified
